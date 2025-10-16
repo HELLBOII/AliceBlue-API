@@ -44,7 +44,14 @@ export default function Dashboard() {
   // Helper function to get API URL
   const getApiUrl = (endpoint: string): string => {
     const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
-    return `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
+    const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
+    console.log('🔗 Dashboard API URL Debug:', {
+      envVar: process.env.NEXT_PUBLIC_API_BASE_URL,
+      baseUrl,
+      endpoint,
+      finalUrl: url
+    })
+    return url
   }
 
   // Order State - declare before hooks

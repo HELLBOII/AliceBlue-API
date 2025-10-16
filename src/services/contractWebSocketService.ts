@@ -51,14 +51,7 @@ class ContractWebSocketServiceImpl implements ContractWebSocketService {
   private connectionStabilized = false
   private subscriptionTimeout: NodeJS.Timeout | null = null
   
-  private readonly SOCKET_URL = process.env.NEXT_PUBLIC_WS_BASE_URL || 'wss://localhost:8000'
-  
-  constructor() {
-    console.log('🔧 Contract WebSocket Config:', {
-      envVar: process.env.NEXT_PUBLIC_WS_BASE_URL,
-      finalUrl: this.SOCKET_URL
-    })
-  }
+  private readonly SOCKET_URL = process.env.NEXT_PUBLIC_WS_BASE_URL || 'ws://localhost:8000'
   private readonly CONNECTION_TIMEOUT = 15000
   private readonly RECONNECT_DELAY = 2000
   private readonly HEARTBEAT_INTERVAL = 30000

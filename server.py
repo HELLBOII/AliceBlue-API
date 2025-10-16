@@ -2203,16 +2203,10 @@ if __name__ == '__main__':
     # Start order monitoring for auto stop-loss
     # start_order_monitoring()
     
-    # Get configuration from environment variables
-    import os
-    host = os.getenv('HOST', '0.0.0.0')
-    port = int(os.getenv('PORT', 8000))
-    debug = os.getenv('DEBUG', 'True').lower() == 'true'
-    
     # Use hardcoded production URLs
     base_url = 'https://alice-blue-api.vercel.app'
     ws_url = 'wss://alice-blue-api.vercel.app'
     
     print(f"Server running on {base_url}")
     print(f"WebSocket server running on {ws_url}")
-    socketio.run(app, host=host, port=port, debug=debug)
+    socketio.run(app, host='0.0.0.0', port=8000, debug=True)

@@ -2205,7 +2205,7 @@ if __name__ == '__main__':
     
     # Use hardcoded production URLs
     base_url = 'https://alice-blue-api.vercel.app'
-    ws_url = 'wss://alice-blue-api.vercel.app'
+    ws_url = 'ws://localhost:8000'
     
     print(f"Server running on {base_url}")
     print(f"WebSocket server running on {ws_url}")

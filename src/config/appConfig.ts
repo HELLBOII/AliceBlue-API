@@ -11,9 +11,9 @@ interface AppConfig {
 
 const getConfig = (): AppConfig => {
   // Check for environment variables first
-  const apiBaseUrl = 'http://localhost:8000' 
-  const wsBaseUrl = 'ws://localhost:8000'
-  const environment = 'development'
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
+  const wsBaseUrl = process.env.NEXT_PUBLIC_WS_BASE_URL || 'ws://localhost:8000'
+  const environment = process.env.NODE_ENV || 'development'
 
   return {
     apiBaseUrl,

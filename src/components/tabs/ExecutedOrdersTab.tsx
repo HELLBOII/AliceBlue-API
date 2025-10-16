@@ -21,7 +21,7 @@ export default function ExecutedOrdersTab() {
     if (!orders?.length) return []
     
     return orders.filter((order: Order) => {
-      const status = order.status || order.Status || ''
+      const status = order.Status || ''
       return isExecutedStatus(status)
     })
   }, [orders])

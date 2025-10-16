@@ -12,7 +12,7 @@ interface AppConfig {
 const getConfig = (): AppConfig => {
   // Check for environment variables first
   const apiBaseUrl = 'https://alice-blue-api.vercel.app' 
-  const wsBaseUrl = 'https://alice-blue-api.vercel.app'
+  const wsBaseUrl = 'wss://alice-blue-api.vercel.app'
   const environment = 'production'
 
   return {
@@ -31,9 +31,20 @@ export const ENVIRONMENT = config.environment
 
 // Helper functions
 export const getApiUrl = (endpoint: string): string => {
-  return `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
+  const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
+  console.log(`🔗 API URL: ${url}`)
+  return url
 }
 
 export const getWsUrl = (endpoint: string): string => {
-  return `${WS_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
+  const url = `${WS_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
+  console.log(`🔌 WebSocket URL: ${url}`)
+  return url
 }
+
+// Debug logging
+console.log('🔧 App Config:', {
+  apiBaseUrl: API_BASE_URL,
+  wsBaseUrl: WS_BASE_URL,
+  environment: ENVIRONMENT
+})

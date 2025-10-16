@@ -2209,15 +2209,9 @@ if __name__ == '__main__':
     port = int(os.getenv('PORT', 8000))
     debug = os.getenv('DEBUG', 'True').lower() == 'true'
     
-    # Determine the base URL based on environment
-    if os.getenv('VERCEL') == '1':
-        # Running on Vercel
-        base_url = 'https://alice-blue-api.vercel.app'
-        ws_url = 'wss://alice-blue-api.vercel.app'
-    else:
-        # Running locally
-        base_url = f'http://localhost:{port}'
-        ws_url = f'ws://localhost:{port}'
+    # Use hardcoded production URLs
+    base_url = 'https://alice-blue-api.vercel.app'
+    ws_url = 'wss://alice-blue-api.vercel.app'
     
     print(f"Server running on {base_url}")
     print(f"WebSocket server running on {ws_url}")

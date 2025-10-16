@@ -2204,7 +2204,7 @@ if __name__ == '__main__':
     # start_order_monitoring()
     
     # Use hardcoded production URLs
-    base_url = 'https://alice-blue-api.vercel.app'
+    base_url = 'http://localhost:8000'
     ws_url = 'ws://localhost:8000'
     
     print(f"Server running on {base_url}")

@@ -11,7 +11,7 @@ interface AppConfig {
 
 const getConfig = (): AppConfig => {
   // Check for environment variables first
-  const apiBaseUrl = 'https://alice-blue-api.vercel.app' 
+  const apiBaseUrl = 'http://localhost:8000' 
   const wsBaseUrl = 'ws://localhost:8000'
   const environment = 'development'
 

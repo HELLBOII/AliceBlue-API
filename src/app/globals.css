@@ -1,26 +1,166 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Alice Blue specific styles */
+.alice-blue-bg {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.contract-item {
+  @apply p-3 border-b border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors;
+}
+
+.contract-item.active {
+  @apply bg-blue-50 border-l-4 border-l-blue-500;
+}
+
+.price-positive {
+  @apply text-green-600;
+}
+
+.price-negative {
+  @apply text-red-600;
+}
+
+.tab-active {
+  @apply border-b-2 border-blue-500 text-blue-600;
+}
+
+.card-shadow {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* TradingView Chart Styles */
+.trading-view-chart-container {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.trading-view-chart-content {
+  text-align: center;
+}
+
+.trading-view-chart-title {
+  margin-bottom: 20px;
+  font-size: 24px;
+}
+
+.trading-view-chart-symbol {
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.trading-view-chart-price {
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.trading-view-chart-note {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.trading-view-chart-area {
+  margin-top: 30px;
+  width: 300px;
+  height: 150px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+}
+
+/* Shimmer animation for loading states */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Shimmer effect classes */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 2s infinite;
+}
+
+.shimmer-delay-0::before { animation-delay: 0s; }
+.shimmer-delay-1::before { animation-delay: 0.1s; }
+.shimmer-delay-2::before { animation-delay: 0.2s; }
+.shimmer-delay-3::before { animation-delay: 0.3s; }
+.shimmer-delay-4::before { animation-delay: 0.4s; }
+
+/* Hide number input spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }

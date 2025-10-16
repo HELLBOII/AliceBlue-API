@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client'
 import { MarketData } from '@/types'
+import { WS_BASE_URL } from '@/config/appConfig'
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
@@ -39,7 +40,7 @@ class MarketDataWebSocketServiceImpl implements MarketDataWebSocketService {
   private connectionStabilized = false
   private subscriptionTimeout: NodeJS.Timeout | null = null
   
-  private readonly SOCKET_URL = 'http://localhost:8000'
+  private readonly SOCKET_URL = WS_BASE_URL
   private readonly CONNECTION_TIMEOUT = 15000
   private readonly RECONNECT_DELAY = 2000
   private readonly HEARTBEAT_INTERVAL = 30000

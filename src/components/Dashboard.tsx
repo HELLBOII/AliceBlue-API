@@ -25,6 +25,7 @@ import { useAPI } from '@/contexts/APIContext'
 import { useMarketData } from '@/hooks/useMarketData'
 import { useContractData } from '@/hooks/useContractData'
 import { OrderForm,Contract } from '@/types'
+import { getApiUrl } from '@/config/appConfig'
 import PositionBookTab from '@/components/tabs/PositionBookTab'
 import AccountDetailsTab from '@/components/tabs/AccountDetailsTab'
 import OpenOrdersTab from '@/components/tabs/OpenOrdersTab'
@@ -271,8 +272,8 @@ export default function Dashboard() {
 
       // Call the appropriate API endpoint based on account mode
       const endpoint = accountMode === 'primary' 
-        ? 'http://localhost:8000/api/place-order-primary'
-        : 'http://localhost:8000/api/place-order-all'
+        ? getApiUrl('/place-order-primary')
+        : getApiUrl('/place-order-all')
       
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -373,7 +374,7 @@ export default function Dashboard() {
       addLog(`🚀 Initiating comprehensive square off on ${accountModeText}...`, 'info')
       
       // Call the comprehensive square off API
-      const response = await fetch('http://localhost:8000/api/comprehensive-square-off', {
+      const response = await fetch(getApiUrl('/comprehensive-square-off'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

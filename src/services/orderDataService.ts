@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client'
+import { WS_BASE_URL } from '@/config/appConfig'
 
 export interface OrderWatchConfig {
   orderId: string
@@ -57,7 +58,7 @@ class OrderWatchServiceImpl implements OrderWatchService {
   private heartbeatInterval: NodeJS.Timeout | null = null
   private orderCheckInterval: NodeJS.Timeout | null = null
   
-  private readonly SOCKET_URL = 'http://localhost:8000'
+  private readonly SOCKET_URL = WS_BASE_URL
   private readonly CONNECTION_TIMEOUT = 15000
   private readonly RECONNECT_DELAY = 2000
   private readonly HEARTBEAT_INTERVAL = 30000

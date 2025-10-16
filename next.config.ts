@@ -1,38 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Optimize for production
   experimental: {
-    optimizeCss: true,
+    optimizePackageImports: ['lucide-react'],
   },
-  
-  // Ensure consistent builds
-  typescript: {
-    ignoreBuildErrors: false,
-  },
-  
-  // Font optimization
+  // Ensure consistent font loading
   optimizeFonts: true,
-  
-  // Image optimization
-  images: {
-    unoptimized: false,
-  },
-  
-  // Headers for better caching
-  async headers() {
-    return [
-      {
-        source: '/fonts/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
-      },
-    ];
-  },
+  // Enable static optimization
+  trailingSlash: false,
+  // Ensure consistent build output
+  swcMinify: true,
 };
 
 export default nextConfig;

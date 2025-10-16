@@ -1,10 +1,45 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS Reset for consistent rendering */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  
+  html {
+    line-height: 1.15;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+  
+  body {
+    margin: 0;
+    font-family: inherit;
+  }
+  
+  /* Ensure consistent font rendering */
+  button,
+  input,
+  optgroup,
+  select,
+  textarea {
+    font-family: inherit;
+    font-size: 100%;
+    line-height: 1.15;
+    margin: 0;
+  }
+}
 
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --background: 255, 255, 255;
+  --foreground: 0, 0, 0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -15,13 +50,6 @@
   }
 }
 
-/* Force consistent font rendering */
-* {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-}
-
 body {
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(
@@ -30,6 +58,45 @@ body {
       rgb(var(--background-end-rgb))
     )
     rgb(var(--background-start-rgb));
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  font-variation-settings: normal;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure consistent font rendering across environments */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Ensure consistent text rendering */
+h1, h2, h3, h4, h5, h6 {
+  font-family: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+/* Consistent button and input styling */
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* Prevent font size adjustments on mobile */
+@media screen and (max-width: 768px) {
+  html {
+    text-size-adjust: none;
+    -webkit-text-size-adjust: none;
+  }
 }
 
 /* Custom scrollbar */
@@ -53,6 +120,41 @@ body {
 /* Alice Blue specific styles */
 .alice-blue-bg {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Consistent component styling */
+.dashboard-card {
+  @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4;
+  font-family: inherit;
+}
+
+.dashboard-metric {
+  @apply text-sm font-medium text-gray-600;
+  font-family: inherit;
+}
+
+.dashboard-value {
+  @apply text-lg font-semibold text-gray-900;
+  font-family: inherit;
+}
+
+.dashboard-button {
+  @apply px-4 py-2 rounded-md font-medium transition-colors;
+  font-family: inherit;
+}
+
+.dashboard-input {
+  @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  font-family: inherit;
+}
+
+.dashboard-tab {
+  @apply px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:text-blue-600 hover:border-blue-300;
+  font-family: inherit;
+}
+
+.dashboard-tab.active {
+  @apply text-blue-600 border-blue-500;
 }
 
 .contract-item {

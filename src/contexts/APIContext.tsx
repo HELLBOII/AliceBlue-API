@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useCallback, useRef, useState } from 'react'
 import { Contract, MarketData, Order, Position, Holdings, Fund, Profile,TradeBook } from '@/types'
+import { API_BASE_URL } from '@/config/appConfig'
 
 interface APIContextType {
   // Data
@@ -41,7 +42,7 @@ interface APIContextProviderProps {
 
 // API configuration - moved outside component to prevent recreation
 const API_CONFIG = {
-  baseURL: 'http://localhost:8000'
+  baseURL: API_BASE_URL
 }
 
 export function APIContextProvider({ children }: APIContextProviderProps) {

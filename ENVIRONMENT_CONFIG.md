@@ -8,8 +8,8 @@ Create a `.env.local` file in the root directory with the following variables:
 
 ```bash
 # API Configuration
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-NEXT_PUBLIC_WS_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_API_BASE_URL=https://alice-blue-api.vercel.app
+NEXT_PUBLIC_WS_BASE_URL=ws://localhost:8000
 
 # Environment
 NODE_ENV=development
@@ -17,25 +17,25 @@ NODE_ENV=development
 
 ## Environment Examples
 
-### Development
+### Development (Recommended)
 ```bash
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-NEXT_PUBLIC_WS_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_API_BASE_URL=https://alice-blue-api.vercel.app
+NEXT_PUBLIC_WS_BASE_URL=ws://localhost:8000
 NODE_ENV=development
 ```
 
 ### Production
 ```bash
-NEXT_PUBLIC_API_BASE_URL=https://your-api-domain.com
-NEXT_PUBLIC_WS_BASE_URL=https://your-api-domain.com
+NEXT_PUBLIC_API_BASE_URL=https://alice-blue-api.vercel.app
+NEXT_PUBLIC_WS_BASE_URL=wss://alice-blue-api.vercel.app
 NODE_ENV=production
 ```
 
-### Staging
+### Local Development (Full Local)
 ```bash
-NEXT_PUBLIC_API_BASE_URL=https://staging-api.your-domain.com
-NEXT_PUBLIC_WS_BASE_URL=https://staging-api.your-domain.com
-NODE_ENV=production
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_WS_BASE_URL=ws://localhost:8000
+NODE_ENV=development
 ```
 
 ## Configuration Files

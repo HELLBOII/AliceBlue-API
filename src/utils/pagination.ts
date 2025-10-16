@@ -2,7 +2,7 @@
  * Utility functions for pagination
  */
 
-export const getPaginatedData = (data: any[], page: number, pageSize: number) => {
+export const getPaginatedData = <T>(data: T[], page: number, pageSize: number): T[] => {
   if (!Array.isArray(data) || data.length === 0) {
     return []
   }
@@ -11,14 +11,14 @@ export const getPaginatedData = (data: any[], page: number, pageSize: number) =>
   return data.slice(startIndex, endIndex)
 }
 
-export const getTotalPages = (data: any[], pageSize: number) => {
+export const getTotalPages = <T>(data: T[], pageSize: number): number => {
   if (!Array.isArray(data) || data.length === 0) {
     return 0
   }
   return Math.ceil(data.length / pageSize)
 }
 
-export const getPaginationInfo = (data: any[], page: number, pageSize: number) => {
+export const getPaginationInfo = <T>(data: T[], page: number, pageSize: number) => {
   const totalItems = data.length
   const totalPages = getTotalPages(data, pageSize)
   const startItem = (page - 1) * pageSize + 1

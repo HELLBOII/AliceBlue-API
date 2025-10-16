@@ -13,11 +13,8 @@ import {
   Wallet,
   BarChart3,
   Building2,
-  Target,
-  Search,
   Trash2,
   BookOpen,
-  FileText,
   User,
   Clock,
   CheckCircle,
@@ -49,23 +46,19 @@ export default function Dashboard() {
   // Use optimized hooks for data management
   const { 
     funds, 
-    positions, 
-    orders,
     getPositions, 
     getOrders, 
     getFunds, 
     getProfile,
-    getTradeBook,
-    loading
+    getTradeBook
   } = useAPI()
-  const { marketData, loading: marketDataLoading, error: marketDataError } = useMarketData({
+  const { marketData } = useMarketData({
     autoConnect: true,
     enableWebSocket: true
   })
   const { 
     contracts, 
     loading: contractsLoading, 
-    error: contractsError, 
     refresh: refreshContracts,
     searchContracts,
     selectedContract: hookSelectedContract,
@@ -144,9 +137,10 @@ export default function Dashboard() {
         default:
           console.log('❓ Unknown tab:', tab)
       }
-    } catch (error) {
+    } catch {
+      // Error handling can be added here if needed
     }
-  }, [getPositions, getOrders, getFunds, getProfile, getTradeBook])
+  }, [getPositions, getOrders, getProfile, getTradeBook])
 
   // Handle chart button click
   const handleChartButtonClick = useCallback(() => {
@@ -159,7 +153,7 @@ export default function Dashboard() {
   // Load initial data for default tab
   useEffect(() => {
     handleTabChange('positionbook')
-  }, []) // Only run once on mount
+  }, [handleTabChange]) // Only run once on mount
   
   
   // Helper function for day suffix
@@ -238,18 +232,6 @@ export default function Dashboard() {
 
   // Set up WebSocket event listeners for live logs
   useEffect(() => {
-    const handleConnect = () => {
-      addLog('Socket connection authenticated. Ready to live stream feeds.', 'success')
-    }
-
-    const handleDisconnect = () => {
-      addLog('WebSocket disconnected. Attempting to reconnect...', 'warning')
-    }
-
-    const handleError = (error: any) => {
-      addLog(`WebSocket Error: ${error.message || 'Connection failed'}`, 'error')
-    }
-
     // Add initial connection log
     // addLog('Initializing WebSocket connections...', 'info')
   }, [])
@@ -324,19 +306,6 @@ export default function Dashboard() {
           
           // Auto-watch the placed order if it's a limit order
           if (orderType === 'limit' && result.order_id && hookSelectedContract && hookSelectedContract.trading_symbol) {
-            const watchConfig = {
-              orderId: result.order_id,
-              symbol: hookSelectedContract.trading_symbol!,
-              exchange: hookSelectedContract.exchange,
-              quantity: orderForm.quantity,
-              price: orderForm.price,
-              transactionType: orderForm.transaction_type as 'B' | 'S',
-              stopLossMargin: orderForm.stop_loss,
-              stopLossMarginType: 'absolute',
-              accountName: 'Primary Account',
-              instrument: hookSelectedContract
-            }
-            
             // Order watch functionality removed
           }
         } else {
@@ -348,7 +317,7 @@ export default function Dashboard() {
           // Log stop loss orders if placed
           if (result.stop_loss_orders && result.stop_loss_orders.length > 0) {
             addLog(`Stop Loss Orders placed:`, 'success')
-            result.stop_loss_orders.forEach((stopLossOrder: any) => {
+            result.stop_loss_orders.forEach((stopLossOrder: Record<string, unknown>) => {
               if (stopLossOrder.order_id) {
                 addLog(`  ${stopLossOrder.account_name}: ID ${stopLossOrder.order_id} at ₹${stopLossOrder.stop_loss_price}`, 'info')
               } else if (stopLossOrder.error) {
@@ -359,20 +328,7 @@ export default function Dashboard() {
           
           // Auto-watch placed orders for all accounts if they are limit orders
           if (orderType === 'limit' && result.order_ids && result.order_ids.length > 0 && hookSelectedContract && hookSelectedContract.trading_symbol) {
-            result.order_ids.forEach((orderId: string, index: number) => {
-              const watchConfig = {
-                orderId: orderId,
-                symbol: hookSelectedContract.trading_symbol!,
-                exchange: hookSelectedContract.exchange,
-                quantity: orderForm.quantity,
-                price: orderForm.price,
-                transactionType: orderForm.transaction_type as 'B' | 'S',
-                stopLossMargin: orderForm.stop_loss,
-                stopLossMarginType: 'absolute',
-                accountName: result.stop_loss_orders?.[index]?.account_name || 'Account',
-                instrument: hookSelectedContract
-              }
-              
+            result.order_ids.forEach(() => {
               // Order watch functionality removed
             })
           }
@@ -395,7 +351,7 @@ export default function Dashboard() {
         // Log detailed error information
         if (result.failed_orders && result.failed_orders.length > 0) {
           addLog(`Failed orders details:`, 'error')
-          result.failed_orders.forEach((failed: any) => {
+          result.failed_orders.forEach((failed: Record<string, unknown>) => {
             addLog(`  ${failed.account_name}: ${failed.error}`, 'error')
           })
         }
@@ -446,7 +402,7 @@ export default function Dashboard() {
         if (steps.step1_cancel_orders) {
           addLog(`📋 Step 1 - Cancel Orders: ${steps.step1_cancel_orders.message}`, 'info')
           if (steps.step1_cancel_orders.details && steps.step1_cancel_orders.details.length > 0) {
-            steps.step1_cancel_orders.details.forEach((order: any) => {
+            steps.step1_cancel_orders.details.forEach((order: Record<string, unknown>) => {
               addLog(`  ✅ Cancelled: ${order.symbol} - Order ID: ${order.order_id}`, 'info')
             })
           }
@@ -456,7 +412,7 @@ export default function Dashboard() {
         if (steps.step2_auto_square_off) {
           addLog(`🔄 Step 2 - Auto Square Off: ${steps.step2_auto_square_off.message}`, 'info')
           if (steps.step2_auto_square_off.details && steps.step2_auto_square_off.details.length > 0) {
-            steps.step2_auto_square_off.details.forEach((position: any) => {
+            steps.step2_auto_square_off.details.forEach((position: Record<string, unknown>) => {
               addLog(`  ✅ Squared off: ${position.symbol} - ${position.quantity} qty - Order ID: ${position.order_id}`, 'info')
             })
           }
@@ -587,7 +543,7 @@ export default function Dashboard() {
         // Don't set price here to prevent real-time updates
       }))
     }
-  }, [hookSelectedContract?.token, hookSelectedContract?.exchange, hookSelectedContract?.trading_symbol, hookSelectedContract?.lot_size])
+  }, [hookSelectedContract?.token, hookSelectedContract?.exchange, hookSelectedContract?.trading_symbol, hookSelectedContract?.lot_size, hookSelectedContract])
 
   // Separate effect to handle real-time price updates for LTP display only
   useEffect(() => {
@@ -595,7 +551,7 @@ export default function Dashboard() {
       setLtp(hookSelectedContract.price)
       // Don't update orderForm.price here to prevent real-time updates to user input
     }
-  }, [hookSelectedContract?.price])
+  }, [hookSelectedContract?.price, hookSelectedContract])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -687,7 +643,7 @@ export default function Dashboard() {
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center space-x-1">
                     <TrendingUp className="w-3 h-3 text-violet-600" />
-                    <h3 className="text-xs font-bold text-slate-800">Today's P&L</h3>
+                    <h3 className="text-xs font-bold text-slate-800">Today&apos;s P&L</h3>
                   </div>
                   <div className={`text-xs font-medium ${todayPnLPercent >= 0 ? 'text-violet-600' : 'text-red-600'}`}>
                     {todayPnLPercent >= 0 ? '+' : ''}{todayPnLPercent.toFixed(2)}%
@@ -704,7 +660,7 @@ export default function Dashboard() {
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center space-x-1">
                     <TrendingUp className="w-3 h-3 text-violet-600" />
-                    <h3 className="text-xs font-bold text-slate-800">Today's P&L</h3>
+                    <h3 className="text-xs font-bold text-slate-800">Today&apos;s P&L</h3>
                   </div>
                   <div className="text-xs font-medium text-violet-600">
                     0%
@@ -736,7 +692,7 @@ export default function Dashboard() {
                 </div>
                 <div className="text-center">
                   <div className="text-lg font-bold text-blue-800">
-                    ₹{Number(fundsData?.net || 0).toFixed(2)}
+                    ₹{Number(fundsData?.cashmarginavailable || 0).toFixed(2)}
                     {/* {loading.funds ? (
                       <div className="animate-pulse bg-blue-200 h-6 rounded"></div>
                     ) : funds.length > 0 ? (
@@ -761,7 +717,7 @@ export default function Dashboard() {
                 </div>
                 <div className="text-center">
                   <div className="text-lg font-bold text-pink-600">
-                    ₹{Number(fundsData?.cashmarginavailable || 0).toFixed(2)}
+                    ₹{Number(fundsData?.net || 0).toFixed(2)}
                     {/* {loading.funds ? (
                       <div className="animate-pulse bg-pink-200 h-6 rounded"></div>
                     ) : funds.length > 0 ? (
@@ -958,7 +914,7 @@ export default function Dashboard() {
                       name="orderType" 
                       value="market"
                       checked={orderType === 'market'}
-                      onChange={(e) => setOrderType(e.target.value as any)}
+                      onChange={(e) => setOrderType(e.target.value as 'market' | 'limit')}
                       className="mr-2"
                       aria-label="Market Order"
                     />
@@ -995,7 +951,7 @@ export default function Dashboard() {
                       name="orderType" 
                       value="limit"
                       checked={orderType === 'limit'}
-                      onChange={(e) => setOrderType(e.target.value as any)}
+                      onChange={(e) => setOrderType(e.target.value as 'market' | 'limit')}
                       className="mr-2"
                       aria-label="Limit Order"
                     />
@@ -1029,7 +985,7 @@ export default function Dashboard() {
                       name="accountMode" 
                       value="primary"
                       checked={accountMode === 'primary'}
-                      onChange={(e) => setAccountMode(e.target.value as any)}
+                      onChange={(e) => setAccountMode(e.target.value as 'primary' | 'all')}
                       className="mr-2"
                       aria-label="Primary Account"
                     />
@@ -1043,7 +999,7 @@ export default function Dashboard() {
                       name="accountMode" 
                       value="all"
                       checked={accountMode === 'all'}
-                      onChange={(e) => setAccountMode(e.target.value as any)}
+                      onChange={(e) => setAccountMode(e.target.value as 'primary' | 'all')}
                       className="mr-2"
                       aria-label="All Connected Accounts"
                     />

@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import { Profile } from '@/types'
 import { User, Mail, Phone, Shield } from 'lucide-react'
 import { useAPI } from '@/contexts/APIContext'
 

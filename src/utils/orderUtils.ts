@@ -51,14 +51,14 @@ export const formatOrderTime = (timeString: string) => {
   return timeString.split(" ")[1] || timeString
 }
 
-export const formatPrice = (price: any) => {
+export const formatPrice = (price: unknown) => {
   if (!price) return 'N/A'
   return price.toString()
 }
 
-export const formatPnl = (pnl: any) => {
+export const formatPnl = (pnl: unknown) => {
   if (!pnl) return 'N/A'
-  const pnlValue = parseFloat(pnl)
+  const pnlValue = parseFloat(pnl.toString())
   return {
     value: pnl.toString(),
     isPositive: pnlValue >= 0,
@@ -66,14 +66,14 @@ export const formatPnl = (pnl: any) => {
   }
 }
 
-export const getOrderDisplayName = (order: any) => {
-  return order.Scripname || order.Trsym || order.Sym || order.tradingsymbol || order.symbol || 'N/A'
+export const getOrderDisplayName = (order: Record<string, unknown>) => {
+  return (order.Scripname || order.Trsym || order.Sym || order.tradingsymbol || order.symbol || 'N/A') as string
 }
 
-export const getOrderQuantity = (order: any) => {
-  return order.Qty || order.bqty || order.quantity || 'N/A'
+export const getOrderQuantity = (order: Record<string, unknown>) => {
+  return (order.Qty || order.bqty || order.quantity || 'N/A') as string
 }
 
-export const getOrderPrice = (order: any) => {
-  return order.Prc || order.price || 'N/A'
+export const getOrderPrice = (order: Record<string, unknown>) => {
+  return (order.Prc || order.price || 'N/A') as string
 }

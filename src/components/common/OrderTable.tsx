@@ -2,17 +2,17 @@
 
 import { Edit, X } from 'lucide-react'
 import { getStatusColor, getTransactionTypeColor, formatOrderTime, formatPrice, formatPnl, getOrderDisplayName, getOrderQuantity, getOrderPrice } from '@/utils/orderUtils'
-import { useEffect, useMemo } from 'react'
+
+// Define flexible types that match the actual API response structure
 interface OrderTableProps {
-  data: any[]
+  data: Record<string, unknown>[]
   type: 'pending' | 'executed' | 'trade' | 'positionbook'
   onCancelOrder?: (orderId: string) => void
   onModifyOrder?: (orderId: string) => void
-  loading?: boolean
 }
 
 
-export default function OrderTable({ data, type, onCancelOrder, onModifyOrder, loading = false }: OrderTableProps) {
+export default function OrderTable({ data, type, onCancelOrder, onModifyOrder }: OrderTableProps) {
   
 
   const renderPendingTable = () => (
@@ -30,74 +30,77 @@ export default function OrderTable({ data, type, onCancelOrder, onModifyOrder, l
         </tr>
       </thead>
       <tbody className="bg-white divide-y divide-gray-200">
-        {data.map((order, index) => (
-          <tr key={order.id || `pending-order-${index}`} className="hover:bg-gray-50">            
-            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
-              {formatOrderTime(order.OrderedTime)}
-            </td>
-            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTransactionTypeColor(order.Trantype)}`}>
-                {order.Trantype === 'B' ? 'BUY' : 'SELL'}
-              </span>
-            </td>
-            <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-              {getOrderDisplayName(order)}
-            </td>
-            <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-              {order.Pcode + order.Prctype ? order.Pcode + ' / ' + order.Prctype : 'N/A'}
-            </td>
-            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-              {getOrderQuantity(order)}
-            </td>
-            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-              {formatPrice(getOrderPrice(order))}
-            </td>
-            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                <span className={`px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800`}>
-                {order.Status.toUpperCase()}
-              </span>
-            </td>
-            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
-              <div className='flex items-center space-x-1'>
-                {/* Modify Order Button */}
-                <div className="relative group">
-                  <button 
-                    onClick={() => onModifyOrder && onModifyOrder(order.Nstordno || order.id)} 
-                    disabled={!onModifyOrder} 
-                    aria-label="Modify Order"
-                    className="p-1 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-50 disabled:hover:border-blue-200 transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
-                  >
-                    <Edit className='w-4 h-4 text-blue-600' />
-                  </button>
-                  
-                  {/* Tooltip for Modify Button */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                    Modify Order
+        {data.map((order, index) => {
+          const orderData = order as Record<string, unknown>
+          return (
+            <tr key={(orderData.id as string) || `pending-order-${index}`} className="hover:bg-gray-50">            
+              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                {formatOrderTime(orderData.OrderedTime as string)}
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTransactionTypeColor(orderData.Trantype as string)}`}>
+                  {(orderData.Trantype as string) === 'B' ? 'BUY' : 'SELL'}
+                </span>
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                {getOrderDisplayName(orderData)}
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                {orderData.Pcode && orderData.Prctype ? `${orderData.Pcode} / ${orderData.Prctype}` : (orderData.Pcode as string) || (orderData.Prctype as string) || 'N/A'}
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                {getOrderQuantity(orderData)}
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                {formatPrice(getOrderPrice(orderData))}
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800`}>
+                  {(orderData.Status as string)?.toUpperCase() || 'PENDING'}
+                </span>
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                <div className='flex items-center space-x-1'>
+                  {/* Modify Order Button */}
+                  <div className="relative group">
+                    <button 
+                      onClick={() => onModifyOrder && onModifyOrder((orderData.Nstordno || orderData.id) as string)} 
+                      disabled={!onModifyOrder} 
+                      aria-label="Modify Order"
+                      className="p-1 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-50 disabled:hover:border-blue-200 transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
+                    >
+                      <Edit className='w-4 h-4 text-blue-600' />
+                    </button>
+                    
+                    {/* Tooltip for Modify Button */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                      Modify Order
+                    </div>
                   </div>
-                </div>
 
-                {/* Cancel Order Button */}
-                <div className="relative group">
-                  <button 
-                    onClick={() => onCancelOrder && onCancelOrder(order.Nstordno || order.id)} 
-                    disabled={!onCancelOrder} 
-                    aria-label="Cancel Order"
-                    className="p-1 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200 hover:border-red-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-50 disabled:hover:border-red-200 transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
-                  >
-                    <X className='w-4 h-4 text-red-600' />
-                  </button>
-                  
-                  {/* Tooltip for Cancel Button */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                    Cancel Order
+                  {/* Cancel Order Button */}
+                  <div className="relative group">
+                    <button 
+                      onClick={() => onCancelOrder && onCancelOrder((orderData.Nstordno || orderData.id) as string)} 
+                      disabled={!onCancelOrder} 
+                      aria-label="Cancel Order"
+                      className="p-1 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200 hover:border-red-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-50 disabled:hover:border-red-200 transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
+                    >
+                      <X className='w-4 h-4 text-red-600' />
+                    </button>
+                    
+                    {/* Tooltip for Cancel Button */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                      Cancel Order
+                    </div>
                   </div>
                 </div>
-              </div>
-            </td>
-          </tr>
-        ))}
+              </td>
+            </tr>
+          )
+        })}
       </tbody>
     </table>
   )
@@ -117,59 +120,62 @@ export default function OrderTable({ data, type, onCancelOrder, onModifyOrder, l
         </tr>
       </thead>
       <tbody className="bg-white divide-y divide-gray-200">
-        {data.map((order, index)  => (
-          <tr key={order.Nstordno || order.orderId || `executed-order-${index}`} className="hover:bg-gray-50">
-            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
-              {formatOrderTime(order.OrderedTime)}
-            </td>
-            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
-              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTransactionTypeColor(order.Trantype)}`}>
-                {order.Trantype === 'B' ? 'BUY' : order.Trantype === 'S' ? 'SELL' : order.Trantype || 'N/A'}
-              </span>
-            </td>
-            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
-              <div className="flex items-center justify-between">
-                <span>{getOrderDisplayName(order)}</span>
-                <div className="relative group">
-                  <button 
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                    aria-label={order.RejReason ? `Rejection reason: ${order.RejReason}` : "More options"}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                    </svg>
-                  </button>
-                  
-                  {(order.RejReason || "More options") && (
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                      {order.RejReason || "More options"}
-                    </div>
-                  )}
+        {data.map((order, index) => {
+          const orderData = order as Record<string, unknown>
+          return (
+            <tr key={(orderData.Nstordno || orderData.orderId || `executed-order-${index}`) as string} className="hover:bg-gray-50">
+              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
+                {formatOrderTime(orderData.OrderedTime as string)}
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTransactionTypeColor(orderData.Trantype as string)}`}>
+                  {(orderData.Trantype as string) === 'B' ? 'BUY' : (orderData.Trantype as string) === 'S' ? 'SELL' : (orderData.Trantype as string) || 'N/A'}
+                </span>
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
+                <div className="flex items-center justify-between">
+                  <span>{getOrderDisplayName(orderData)}</span>
+                  <div className="relative group">
+                    <button 
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      aria-label={orderData.RejReason ? `Rejection reason: ${String(orderData.RejReason)}` : "More options"}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                      </svg>
+                    </button>
+                    
+                    {!!orderData.RejReason && (
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                        {String(orderData.RejReason)}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </td>
-            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
-              {order.Pcode + order.Prctype ? order.Pcode + ' / ' + order.Prctype : 'N/A'}
-            </td>
-            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
-              {getOrderQuantity(order)}
-            </td>
-            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
-              {order.Fillshares || '0'}
-            </td>
-            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
-              {order.Trgprc > 0
-                ? `${order.Prc} / ${order.Trgprc} trg.` 
-                : formatPrice(getOrderPrice(order))}
-            </td>
-            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
-              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(order.Status)}`}>
-                {order.Status ? order.Status.toUpperCase() : 'PENDING'}
-              </span>
-            </td>
-          </tr>
-        ))}
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
+                {orderData.Pcode && orderData.Prctype ? `${orderData.Pcode} / ${orderData.Prctype}` : (orderData.Pcode as string) || (orderData.Prctype as string) || 'N/A'}
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
+                {getOrderQuantity(orderData)}
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
+                {String(orderData.Fillshares) || '0'}
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
+                {(orderData.Trgprc as number) > 0
+                  ? `${orderData.Prc} / ${orderData.Trgprc} trg.` 
+                  : formatPrice(getOrderPrice(orderData))}
+              </td>
+              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(orderData.Status as string)}`}>
+                  {(orderData.Status as string) ? (orderData.Status as string).toUpperCase() : 'PENDING'}
+                </span>
+              </td>
+            </tr>
+          )
+        })}
       </tbody>
     </table>
   )
@@ -189,30 +195,31 @@ export default function OrderTable({ data, type, onCancelOrder, onModifyOrder, l
       </thead>
       <tbody className="bg-white divide-y divide-gray-200">
         {data.map((trade, index) => {
+          const tradeData = trade as Record<string, unknown>
           return (
-            <tr key={trade.nestordernumber || trade.tradeId || `trade-${index}`} className="hover:bg-gray-50">
+            <tr key={(tradeData.nestordernumber || tradeData.tradeId || `trade-${index}`) as string} className="hover:bg-gray-50">
               <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                {trade.Filltime}
+                {tradeData.Filltime as string}
               </td>
               <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTransactionTypeColor(trade.Trantype)}`}>
-                {trade.Trantype === 'B' ? 'BUY' : trade.Trantype === 'S' ? 'SELL' : trade.Trantype || 'N/A'}
+              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTransactionTypeColor(tradeData.Trantype as string)}`}>
+                {(tradeData.Trantype as string) === 'B' ? 'BUY' : (tradeData.Trantype as string) === 'S' ? 'SELL' : (tradeData.Trantype as string) || 'N/A'}
               </span>
               </td>
               <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                {trade.Tsym}
+                {tradeData.Tsym as string}
               </td>
               <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                {trade.Pcode + trade.Prctype ? trade.Pcode + ' / ' + trade.Prctype : 'N/A'}
+                {tradeData.Pcode && tradeData.Prctype ? `${tradeData.Pcode} / ${tradeData.Prctype}` : (tradeData.Pcode as string) || (tradeData.Prctype as string) || 'N/A'}
               </td>
               <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
-                {trade.Qty}
+                {tradeData.Qty as string}
               </td>
               <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
-                {trade.Filledqty}
+                {tradeData.Filledqty as string}
               </td>
               <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 text-center">
-                {trade.Price}
+                {tradeData.Price as string}
               </td>
             </tr>
           )
@@ -234,29 +241,32 @@ export default function OrderTable({ data, type, onCancelOrder, onModifyOrder, l
                 </tr>
               </thead>
               <tbody>
-                {data.map((position, index) => (
-                  <tr key={position.id || `position-${index}`} className="border-b border-slate-100 hover:bg-gradient-to-r hover:from-slate-50 hover:to-white transition-all duration-200">
-                    <td className="py-2 px-2 text-center">
-                      <span className="px-2 py-1 bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 rounded-full text-xs font-medium">
-                        {position.Pcode}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 font-medium text-slate-800 truncate">{position.Tsym}</td>
-                    <td className="py-2 px-2 text-right font-medium text-slate-600">{position.Netqty}</td>
-                    <td className="py-2 px-2 text-right font-medium text-slate-800">{position.Buyavgprc}</td>
-                    <td className="py-2 px-2 text-right font-medium text-slate-800">{position.Sellavgprc}</td>
-                    <td className="py-2 px-2 text-right text-slate-800">
-                      {(() => {
-                        const pnl = formatPnl(position.Unrealisedpnl);
-                        return typeof pnl === 'string' ? pnl : (
-                          <span className={pnl.className}>
-                            {pnl.value}
-                          </span>
-                        );
-                      })()}
-                    </td>
-                  </tr>
-                ))}
+                {data.map((position, index) => {
+                  const positionData = position as Record<string, unknown>
+                  return (
+                    <tr key={(positionData.id as string) || `position-${index}`} className="border-b border-slate-100 hover:bg-gradient-to-r hover:from-slate-50 hover:to-white transition-all duration-200">
+                      <td className="py-2 px-2 text-center">
+                        <span className="px-2 py-1 bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 rounded-full text-xs font-medium">
+                          {positionData.Pcode as string}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 font-medium text-slate-800 truncate">{positionData.Tsym as string}</td>
+                      <td className="py-2 px-2 text-right font-medium text-slate-600">{positionData.Netqty as string}</td>
+                      <td className="py-2 px-2 text-right font-medium text-slate-800">{positionData.Buyavgprc as string}</td>
+                      <td className="py-2 px-2 text-right font-medium text-slate-800">{positionData.Sellavgprc as string}</td>
+                      <td className="py-2 px-2 text-right text-slate-800">
+                        {(() => {
+                          const pnl = formatPnl(positionData.Unrealisedpnl);
+                          return typeof pnl === 'string' ? pnl : (
+                            <span className={pnl.className}>
+                              {pnl.value}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
   )

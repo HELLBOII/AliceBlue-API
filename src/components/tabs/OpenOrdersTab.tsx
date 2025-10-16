@@ -4,10 +4,7 @@ import { useEffect, useCallback, useMemo } from 'react'
 import { Order } from '@/types'
 import { Clock } from 'lucide-react'
 import { useAPI } from '@/contexts/APIContext'
-import { usePortfolioData } from '@/hooks/usePortfolioData'
-import { refreshAfterOrderCancellation } from '@/utils/portfolioRefresh'
 import OrderTable from '@/components/common/OrderTable'
-import EmptyState from '@/components/common/EmptyState'
 import { isPendingStatus } from '@/constants/orderStatuses'
 
 export default function OpenOrdersTab() {
@@ -17,9 +14,6 @@ export default function OpenOrdersTab() {
   useEffect(() => {
     getOrders()
   }, [getOrders])
-  
-  // Portfolio refresh functions
-  const { refreshFunds, refreshPositions, refreshHoldings } = usePortfolioData()
   
   // Optimized filter for pending orders using centralized constants
   const pendingOrders = useMemo(() => {
@@ -41,18 +35,6 @@ export default function OpenOrdersTab() {
         // Refresh orders from API after successful cancellation
         await getOrders()
         
-        // Refresh portfolio data after successful order cancellation
-        await refreshAfterOrderCancellation({
-          refreshFunds,
-          refreshPositions,
-          refreshHoldings
-        }, {
-          refreshFunds: true,
-          refreshPositions: true,
-          refreshHoldings: false,
-          delay: 1000 // Wait 1 second for cancellation to be processed
-        })
-        
         // Optional: Show success message (you can implement toast notifications here)
         console.log('Order cancelled successfully')
       } else {
@@ -61,7 +43,7 @@ export default function OpenOrdersTab() {
     } catch (error) {
       console.error('Error cancelling order:', error)
     }
-  }, [cancelOrder, getOrders, refreshFunds, refreshPositions, refreshHoldings])
+  }, [cancelOrder, getOrders])
   
   // Handle modify order
   const handleModifyOrder = useCallback(async (orderId: string) => {
@@ -120,7 +102,7 @@ export default function OpenOrdersTab() {
                 </div>
                 <h3 className="text-lg font-semibold text-slate-800 mb-2">No Open Orders</h3>
                 <p className="text-slate-600 text-sm max-w-sm mx-auto">
-                  You don't have any pending orders at the moment. Place an order to see it here.
+                  You don&apos;t have any pending orders at the moment. Place an order to see it here.
                 </p>
               </div>
             </div>

@@ -5,11 +5,10 @@ import { Order } from '@/types'
 import { CheckCircle } from 'lucide-react'
 import { useAPI } from '@/contexts/APIContext'
 import OrderTable from '@/components/common/OrderTable'
-import EmptyState from '@/components/common/EmptyState'
 import { isExecutedStatus } from '@/constants/orderStatuses'
 
 export default function ExecutedOrdersTab() {
-  const { orders, getOrders, loading, errors } = useAPI()
+  const { orders, getOrders, loading } = useAPI()
   
   // Fetch orders on component mount
   useEffect(() => {
@@ -72,7 +71,7 @@ export default function ExecutedOrdersTab() {
                 </div>
                 <h3 className="text-lg font-semibold text-slate-800 mb-2">No Executed Orders</h3>
                 <p className="text-slate-600 text-sm max-w-sm mx-auto">
-                  You don't have any executed orders at the moment. Your completed trades will appear here.
+                  You don&apos;t have any executed orders at the moment. Your completed trades will appear here.
                 </p>
               </div>
             </div>

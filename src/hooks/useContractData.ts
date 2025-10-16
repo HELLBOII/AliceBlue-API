@@ -28,7 +28,6 @@ interface UseContractDataReturn {
 }
 
 export function useContractData({
-  autoConnect = true,
   enableWebSocket = true,
   refreshInterval = 0,
   niftyPrice = 0,
@@ -72,9 +71,22 @@ export function useContractData({
       return `${month}-${year}`;
     };
     
+      interface NFOItem {
+        token?: string
+        symbol: string
+        instrument_type: string
+        option_type: string
+        expiry_date: number
+        strike_price: number
+        exch?: string
+        trading_symbol?: string
+        formatted_ins_name?: string
+        lot_size?: string
+      }
+
       const niftyContracts = nfoData
         .filter(
-          (item: any) =>
+          (item: NFOItem) =>
             item.symbol === 'NIFTY' &&
             item.instrument_type === 'OPTIDX' &&
             (item.option_type === 'CE' || item.option_type === 'PE') &&
@@ -83,7 +95,7 @@ export function useContractData({
             formatExpiryToMMYYYY(item.expiry_date) === formatExpiryToMMYYYY(new Date(now)) &&
             (!niftyPrice || (item.strike_price >= minStrike && item.strike_price <= maxStrike))
         )
-        .map((item: any, i: number) => ({
+        .map((item: NFOItem, i: number) => ({
           id: item.token || `${item.symbol}_${item.strike_price}_${item.option_type}_${item.expiry_date}_${i}`,
           symbol: item.symbol,
           trading_symbol: item.trading_symbol,
@@ -101,12 +113,12 @@ export function useContractData({
           strike_price: item.strike_price,
           expiry_date: item.expiry_date,
         }))
-        .sort((a: any, b: any) => {
-          const expiryDiff = new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime()
-          return expiryDiff || a.strike - b.strike
+        .sort((a: Contract, b: Contract) => {
+          const expiryDiff = new Date(a.expiry_date || 0).getTime() - new Date(b.expiry_date || 0).getTime()
+          return expiryDiff || (a.strike || 0) - (b.strike || 0)
         })
         // Remove duplicates based on ID to prevent React key conflicts
-        .filter((contract: any, index: number, arr: any[]) => 
+        .filter((contract: Contract, index: number, arr: Contract[]) => 
           arr.findIndex(c => c.id === contract.id) === index
         )
         .slice(0, maxContracts)
@@ -130,8 +142,9 @@ export function useContractData({
       console.log(`Fetched ${data.length} contracts`)
       setContracts(data)
       setHasInitialData(true)
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch contracts')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch contracts'
+      setError(errorMessage)
     } finally {
       setLoading(false)
       isFetching.current = false
@@ -186,9 +199,10 @@ export function useContractData({
       setIsConnected(false);
     };
 
-    const handleError = (error: any) => {
+    const handleError = (error: unknown) => {
       console.error('Contract data WebSocket error:', error);
-      setError(error.message || 'WebSocket connection error');
+      const errorMessage = error instanceof Error ? error.message : 'WebSocket connection error'
+      setError(errorMessage);
       setIsConnected(false);
     };
 
@@ -212,7 +226,12 @@ export function useContractData({
 
     console.log(`🔄 Setting up subscription for contract token: ${selectedContract.token}`)
 
-    const handleContractUpdates = (data: any) => {
+    interface ContractUpdate {
+      price?: number
+      changePercent?: number
+    }
+
+    const handleContractUpdates = (data: Record<string, ContractUpdate>) => {
       console.log('Received specific contract updates:', data);
       
       // Only update if we have a selected contract and it has updates
@@ -235,7 +254,7 @@ export function useContractData({
         setContracts(prev =>
           prev.map(c =>
             c.token === selectedContract.token && c.token && data[c.token]
-              ? { ...c, price: data[c.token].price, changePercent: data[c.token].changePercent || 0 }
+              ? { ...c, price: data[c.token].price || c.price, changePercent: data[c.token].changePercent || c.changePercent }
               : c
           )
         )
@@ -256,7 +275,7 @@ export function useContractData({
       }
       isSubscribed.current = false;
     };
-  }, [enableWebSocket, selectedContract?.token]);
+  }, [enableWebSocket, selectedContract?.token, selectedContract?.price, selectedContract?.changePercent]);
 
   // Set up refresh interval if specified
     useEffect(() => {

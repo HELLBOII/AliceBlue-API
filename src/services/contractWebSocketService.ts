@@ -2,25 +2,40 @@ import { io, Socket } from 'socket.io-client'
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
+interface ContractData {
+  price: number
+  changePercent: number
+  previousPrice?: number
+}
+
+interface ContractUpdates {
+  [token: string]: ContractData
+}
+
+interface WebSocketError {
+  message?: string
+  description?: string
+}
+
 interface ContractWebSocketService {
   connect: () => void
   disconnect: () => void
-  subscribeToContractUpdates: (callback: (data: any) => void) => void
+  subscribeToContractUpdates: () => void
   unsubscribeFromContractUpdates: () => void
-  subscribeToSpecificContract: (token: string, callback: (data: any) => void) => void
+  subscribeToSpecificContract: (token: string, callback: (data: ContractUpdates) => void) => void
   unsubscribeFromSpecificContract: (token: string) => void
   isConnected: () => boolean
   onConnect: (callback: () => void) => void
   onDisconnect: (callback: () => void) => void
-  onError: (callback: (error: any) => void) => void
+  onError: (callback: (error: WebSocketError) => void) => void
   getConnectionStatus: () => ConnectionStatus
 }
 
 class ContractWebSocketServiceImpl implements ContractWebSocketService {
   private contractsSocket: Socket | null = null
-  private contractCallback: ((data: any) => void) | null = null
-  private specificContractCallbacks: Map<string, (data: any) => void> = new Map()
-  private errorCallback: ((error: any) => void) | null = null
+  private contractCallback: ((data: ContractUpdates) => void) | null = null
+  private specificContractCallbacks: Map<string, (data: ContractUpdates) => void> = new Map()
+  private errorCallback: ((error: WebSocketError) => void) | null = null
   private connectCallback: (() => void) | null = null
   private disconnectCallback: (() => void) | null = null
   
@@ -132,7 +147,7 @@ class ContractWebSocketServiceImpl implements ContractWebSocketService {
       }
     })
 
-    this.contractsSocket.on('contract_updates', (data: any) => {
+    this.contractsSocket.on('contract_updates', (data: { data?: ContractUpdates }) => {
       this.lastDataReceived = Date.now()
       
       if (data?.data) {
@@ -154,12 +169,12 @@ class ContractWebSocketServiceImpl implements ContractWebSocketService {
       }
     })
 
-    this.contractsSocket.on('error', (error: any) => {
+    this.contractsSocket.on('error', (error: WebSocketError) => {
       console.error('Contract WebSocket error:', error)
       this.handleConnectionError(error)
     })
 
-    this.contractsSocket.on('connect_error', (error: any) => {
+    this.contractsSocket.on('connect_error', (error: WebSocketError) => {
       console.error('Contract WebSocket connection error:', error)
       this.handleConnectionError(error)
     })
@@ -176,7 +191,7 @@ class ContractWebSocketServiceImpl implements ContractWebSocketService {
       this.reconnectAttempts = attemptNumber
     })
 
-    this.contractsSocket.on('reconnect_error', (error: any) => {
+    this.contractsSocket.on('reconnect_error', (error: WebSocketError) => {
       console.error('Contract WebSocket reconnection error:', error)
       this.handleConnectionError(error)
     })
@@ -246,7 +261,7 @@ class ContractWebSocketServiceImpl implements ContractWebSocketService {
     }
   }
 
-  private validateContractData(data: any): any {
+  private validateContractData(data: unknown): ContractUpdates | null {
     try {
       // Validate contract data structure
       if (!data || typeof data !== 'object') {
@@ -255,10 +270,10 @@ class ContractWebSocketServiceImpl implements ContractWebSocketService {
       }
 
       // Validate each contract token's data
-      const validatedData: any = {}
+      const validatedData: ContractUpdates = {}
       for (const [token, contractData] of Object.entries(data)) {
         if (contractData && typeof contractData === 'object') {
-          const contract = contractData as any
+          const contract = contractData as Record<string, unknown>
           
           // Basic validation for contract data
           if (typeof contract.price === 'number' && 
@@ -267,7 +282,7 @@ class ContractWebSocketServiceImpl implements ContractWebSocketService {
             validatedData[token] = {
               price: contract.price,
               changePercent: contract.changePercent,
-              previousPrice: contract.previousPrice || contract.price
+              previousPrice: typeof contract.previousPrice === 'number' ? contract.previousPrice : contract.price
             }
           } else {
             console.warn(`Invalid contract data for token ${token}:`, contract)
@@ -282,11 +297,15 @@ class ContractWebSocketServiceImpl implements ContractWebSocketService {
     }
   }
 
-  private handleConnectionError(error: any): void {
+  private handleConnectionError(error: unknown): void {
     console.error('Contract WebSocket connection error:', error)
     this.isConnecting = false
-    this.lastError = error?.message || error?.description || 'Connection failed'
-    this.errorCallback?.(error)
+    const errorMessage = error instanceof Error ? error.message : 
+      (error && typeof error === 'object' && 'message' in error) ? String(error.message) :
+      (error && typeof error === 'object' && 'description' in error) ? String(error.description) :
+      'Connection failed'
+    this.lastError = errorMessage
+    this.errorCallback?.(error as WebSocketError)
   }
 
   disconnect(): void {
@@ -323,7 +342,7 @@ class ContractWebSocketServiceImpl implements ContractWebSocketService {
     this.lastDataReceived = null
   }
 
-  subscribeToContractUpdates(callback: (data: any) => void): void {
+  subscribeToContractUpdates(): void {
     // Deprecated: Use subscribeToSpecificContract instead
     console.warn('subscribeToContractUpdates is deprecated. Use subscribeToSpecificContract instead.')
   }
@@ -333,7 +352,7 @@ class ContractWebSocketServiceImpl implements ContractWebSocketService {
     console.warn('unsubscribeFromContractUpdates is deprecated. Use unsubscribeFromSpecificContract instead.')
   }
 
-  subscribeToSpecificContract(token: string, callback: (data: any) => void): void {
+  subscribeToSpecificContract(token: string, callback: (data: ContractUpdates) => void): void {
     this.specificContractCallbacks.set(token, callback)
     console.log(`📡 Subscribed to specific contract updates for token: ${token}`)
     
@@ -368,7 +387,7 @@ class ContractWebSocketServiceImpl implements ContractWebSocketService {
     this.disconnectCallback = callback
   }
 
-  onError(callback: (error: any) => void): void {
+  onError(callback: (error: WebSocketError) => void): void {
     this.errorCallback = callback
   }
 
@@ -381,4 +400,5 @@ class ContractWebSocketServiceImpl implements ContractWebSocketService {
 }
 
 // Export singleton instance
-export default new ContractWebSocketServiceImpl()
+const contractWebSocketService = new ContractWebSocketServiceImpl()
+export default contractWebSocketService

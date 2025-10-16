@@ -1,5 +1,4 @@
 import { io, Socket } from 'socket.io-client'
-import { Order } from '@/types'
 
 export interface OrderWatchConfig {
   orderId: string
@@ -11,7 +10,7 @@ export interface OrderWatchConfig {
   stopLossMargin?: number
   stopLossMarginType?: string
   accountName: string
-  instrument: any
+  instrument: Record<string, unknown>
   autoStopLoss?: boolean
 }
 
@@ -148,17 +147,17 @@ class OrderWatchServiceImpl implements OrderWatchService {
       this.stopLossTriggeredCallback?.(data)
     })
 
-    this.orderWatchSocket.on('stop_loss_error', (data: any) => {
+    this.orderWatchSocket.on('stop_loss_error', (data: Record<string, unknown>) => {
       console.error('❌ Stop loss error:', data)
       // You can add a callback for stop loss errors if needed
     })
 
-    this.orderWatchSocket.on('error', (error: any) => {
+    this.orderWatchSocket.on('error', (error: unknown) => {
       console.error('Order Watch WebSocket error:', error)
       this.handleConnectionError(error)
     })
 
-    this.orderWatchSocket.on('connect_error', (error: any) => {
+    this.orderWatchSocket.on('connect_error', (error: unknown) => {
       console.error('Order Watch WebSocket connection error:', error)
       this.handleConnectionError(error)
     })
@@ -174,7 +173,7 @@ class OrderWatchServiceImpl implements OrderWatchService {
       this.reconnectAttempts = attemptNumber
     })
 
-    this.orderWatchSocket.on('reconnect_error', (error: any) => {
+    this.orderWatchSocket.on('reconnect_error', (error: unknown) => {
       console.error('Order Watch WebSocket reconnection error:', error)
       this.handleConnectionError(error)
     })
@@ -275,7 +274,7 @@ class OrderWatchServiceImpl implements OrderWatchService {
     }
   }
 
-  private handleConnectionError(error: any): void {
+  private handleConnectionError(error: unknown): void {
     console.error('Order Watch WebSocket connection error:', error)
     this.isConnecting = false
   }
@@ -340,4 +339,5 @@ class OrderWatchServiceImpl implements OrderWatchService {
 }
 
 // Export singleton instance
-export default new OrderWatchServiceImpl()
+const orderDataService = new OrderWatchServiceImpl()
+export default orderDataService

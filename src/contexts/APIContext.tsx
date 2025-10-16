@@ -15,13 +15,13 @@ interface APIContextType {
   profile: Profile[]
   
   // API Functions
-  getContracts: () => Promise<Contract[]>
-  getOrders: () => Promise<Order[]>
-  getTradeBook: () => Promise<TradeBook[]>
-  getPositions: () => Promise<Position[]>
-  getHoldings: () => Promise<Holdings[]>
-  getFunds: () => Promise<Fund[]>
-  getProfile: () => Promise<Profile[]>
+  getContracts: () => Promise<unknown>
+  getOrders: () => Promise<unknown>
+  getTradeBook: () => Promise<unknown>
+  getPositions: () => Promise<unknown>
+  getHoldings: () => Promise<unknown>
+  getFunds: () => Promise<unknown>
+  getProfile: () => Promise<unknown>
   cancelOrder: (orderId: string) => Promise<{ success: boolean; error?: string }>
   
   // States
@@ -30,7 +30,7 @@ interface APIContextType {
   
   // Cache
   clearCache: () => void
-  isDataStale: (key: string, maxAge?: number) => boolean
+  isDataStale: () => boolean
 }
 
 const APIContext = createContext<APIContextType | undefined>(undefined)
@@ -39,10 +39,14 @@ interface APIContextProviderProps {
   children: React.ReactNode
 }
 
+// API configuration - moved outside component to prevent recreation
+const API_CONFIG = {
+  baseURL: 'http://localhost:8000'
+}
 
 export function APIContextProvider({ children }: APIContextProviderProps) {
   // Data state
-  const [marketData, setMarketData] = useState<MarketData>({
+  const [marketData] = useState<MarketData>({
     nifty50: { price: 0, changePercent: 0 },
     niftyBank: { price: 0, changePercent: 0 }
   })
@@ -59,20 +63,15 @@ export function APIContextProvider({ children }: APIContextProviderProps) {
   const [errors, setErrors] = useState<Record<string, string | null>>({})
 
   // Request tracking
-  const pendingRequests = useRef<Map<string, Promise<any>>>(new Map())
-
-  // API configuration
-  const API_CONFIG = {
-    baseURL: 'http://localhost:8000'
-  }
+  const pendingRequests = useRef<Map<string, Promise<unknown>>>(new Map())
 
   // Generic API call function
   const apiCall = useCallback(async (
     key: string,
     url: string,
-    setter: (data: any) => void,
+    setter: (data: unknown) => void,
     options: RequestInit = {}
-  ): Promise<any> => {
+  ): Promise<unknown> => {
     // Check if request is already pending
     if (pendingRequests.current.has(key)) {
       return pendingRequests.current.get(key)!
@@ -105,7 +104,7 @@ export function APIContextProvider({ children }: APIContextProviderProps) {
 
     pendingRequests.current.set(key, requestPromise)
     return requestPromise
-  }, [])
+  }, [API_CONFIG.baseURL])
 
   // Simplified API functions
   const getContracts = useCallback(() => apiCall('contracts', '/api/contracts', (data) => setContracts(Array.isArray(data) ? data : [])), [apiCall])
@@ -113,7 +112,7 @@ export function APIContextProvider({ children }: APIContextProviderProps) {
   const getPositions = useCallback(() => apiCall('positions', '/api/positions', (data) => setPositions(Array.isArray(data) ? data : [])), [apiCall])
   const getHoldings = useCallback(() => apiCall('holdings', '/api/holdings', (data) => setHoldings(Array.isArray(data) ? data : [])), [apiCall])
   const getFunds = useCallback(() => apiCall('funds', '/api/funds', (data) => setFunds(Array.isArray(data) ? data : [])), [apiCall])
-  const getProfile = useCallback(() => apiCall('profile', '/api/profile', (data) => setProfile([data])), [apiCall])
+  const getProfile = useCallback(() => apiCall('profile', '/api/profile', (data) => setProfile([data as Profile])), [apiCall])
   const getTradeBook = useCallback(() => apiCall('tradebook', '/api/trade-book', (data) => setTradeBook(Array.isArray(data) ? data : [])), [apiCall])
 
 
@@ -129,7 +128,7 @@ export function APIContextProvider({ children }: APIContextProviderProps) {
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to cancel order' }
     }
-  }, [])
+  }, [API_CONFIG.baseURL])
 
 
   // Cache management
@@ -137,7 +136,7 @@ export function APIContextProvider({ children }: APIContextProviderProps) {
     pendingRequests.current.clear()
   }, [])
 
-  const isDataStale = useCallback((key: string, maxAge?: number): boolean => {
+  const isDataStale = useCallback((): boolean => {
     // Always return true since we removed caching
     return true
   }, [])

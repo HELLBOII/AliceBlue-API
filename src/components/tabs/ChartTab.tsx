@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Contract, ChartConfig } from '@/types'
+import { Contract, ChartConfig, OHLCData } from '@/types'
 import LightweightChart from '@/components/common/LightweightChart'
 
 interface ChartTabProps {
@@ -42,7 +42,7 @@ export default function ChartTab({
     setError(null)
   }, [selectedContract, interval, theme])
 
-  const handleDataLoad = (data: any[]) => {
+  const handleDataLoad = (data: OHLCData[]) => {
     setDataLoaded(true)
     setError(null)
     console.log(`Chart data loaded: ${data.length} data points`)

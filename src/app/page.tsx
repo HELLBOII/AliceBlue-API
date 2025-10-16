@@ -8,7 +8,6 @@ import contractWebSocketService from '@/services/contractWebSocketService'
 export default function Home() {
   
   // WebSocket connection state
-  const [wsConnected, setWsConnected] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
 
   // Initialize WebSocket connections
@@ -23,19 +22,16 @@ export default function Home() {
     const handleConnect = () => {
       console.log('WebSocket connected in main page')
       setIsConnected(true)
-      setWsConnected(true)
     }
 
     const handleDisconnect = () => {
       console.log('WebSocket disconnected in main page')
       setIsConnected(false)
-      setWsConnected(false)
     }
 
-    const handleError = (error: any) => {
+    const handleError = (error: unknown) => {
       console.error('WebSocket error in main page:', error)
       setIsConnected(false)
-      setWsConnected(false)
     }
 
     // Set up Market Data WebSocket callbacks
@@ -54,7 +50,6 @@ export default function Home() {
       if (!isConnected) {
         console.log('WebSocket connection timeout, showing app anyway')
         setIsConnected(true)
-        setWsConnected(true)
       }
     }, 3000)
 
@@ -70,7 +65,7 @@ export default function Home() {
       contractWebSocketService.onError(() => {})
 
     }
-  }, [])
+  }, [isConnected])
 
   if (!isConnected) {
     return (

@@ -61,7 +61,7 @@ export function useChartData({
       const response = await chartDataService.fetchHistoricalData({
         token: chartConfig.token,
         exchange: chartConfig.exchange,
-        resolution: resolution as any,
+        resolution: resolution as '1' | '5' | '15' | '30' | '60' | 'D' | 'W' | 'M',
         from: dateRange.from,
         to: dateRange.to
       })

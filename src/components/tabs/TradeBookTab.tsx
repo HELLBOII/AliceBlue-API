@@ -6,7 +6,7 @@ import { useAPI } from '@/contexts/APIContext'
 import OrderTable from '@/components/common/OrderTable'
 
 export default function TradeBookTab() {
-  const { tradeBook, getTradeBook, loading, errors } = useAPI()
+  const { tradeBook, getTradeBook, loading } = useAPI()
   
   // Fetch trade book data on component mount
   useEffect(() => {
@@ -59,7 +59,7 @@ export default function TradeBookTab() {
                 </div>
                 <h3 className="text-lg font-semibold text-slate-800 mb-2">No Trade Book Entries</h3>
                 <p className="text-slate-600 text-sm max-w-sm mx-auto">
-                  You don't have any trade book entries at the moment. Your trade history will appear here.
+                  You don&apos;t have any trade book entries at the moment. Your trade history will appear here.
                 </p>
               </div>
             </div>

@@ -26,7 +26,7 @@ export interface Contract {
   instrument_type?: string
   lot_size?: string
   option_type?: string
-  pdc?: any
+  pdc?: Record<string, unknown>
   strike_price?: string
   tick_size?: string
   token?: string
@@ -52,6 +52,8 @@ export interface Order {
   stop_loss?: number
   square_off?: number
   trailing_sl?: number
+  // Index signature to allow additional properties from API responses
+  [key: string]: unknown
 }
 
 export interface Position {
@@ -64,6 +66,8 @@ export interface Position {
   LTP: number
   realisedprofitloss: number
   unrealisedprofitloss: number
+  // Index signature to allow additional properties from API responses
+  [key: string]: unknown
 }
 export interface Holdings {
   id: string
@@ -134,6 +138,8 @@ export interface TradeBook {
   Qty: number
   Filledqty: number
   Price: number
+  // Index signature to allow additional properties from API responses
+  [key: string]: unknown
 }
 
 

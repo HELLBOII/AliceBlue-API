@@ -5,11 +5,9 @@ import {
   Settings, 
   Save, 
   RefreshCw, 
-  DollarSign, 
   Target, 
   Shield, 
   User, 
-  Key,
   AlertTriangle,
   CheckCircle,
   Eye,
@@ -83,7 +81,7 @@ export default function SettingsTab() {
       } else {
         setMessage({ type: 'error', text: 'Failed to load settings' })
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Error loading settings' })
     } finally {
       setLoading(false)
@@ -125,7 +123,7 @@ export default function SettingsTab() {
           } else {
             setMessage({ type: 'info', text: 'Settings saved but failed to reload credentials. Please restart the server.' })
           }
-        } catch (reloadError) {
+        } catch {
           setMessage({ type: 'info', text: 'Settings saved but failed to reload credentials. Please restart the server.' })
         }
         
@@ -133,22 +131,22 @@ export default function SettingsTab() {
       } else {
         setMessage({ type: 'error', text: 'Failed to save settings' })
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Error saving settings' })
     } finally {
       setSaving(false)
     }
   }
 
-  const updateSetting = (path: string, value: any) => {
+  const updateSetting = (path: string, value: unknown) => {
     if (!settings) return
 
     const keys = path.split('.')
     const newSettings = { ...settings }
-    let current: any = newSettings
+    let current: Record<string, unknown> = newSettings
 
     for (let i = 0; i < keys.length - 1; i++) {
-      current = current[keys[i]]
+      current = current[keys[i]] as Record<string, unknown>
     }
 
     current[keys[keys.length - 1]] = value

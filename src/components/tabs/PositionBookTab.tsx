@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect } from 'react'
-import { BarChart3, BookOpen, TrendingUp } from 'lucide-react'
+import { BarChart3 } from 'lucide-react'
 import { useAPI } from '@/contexts/APIContext'
 import OrderTable from '../common/OrderTable'
 
 
 
 export default function PositionBookTab() {
-  const { positions, getPositions, loading, errors } = useAPI()
+  const { positions, getPositions, loading } = useAPI()
   
   // Fetch trade book data on component mount
   useEffect(() => {
@@ -62,7 +62,7 @@ export default function PositionBookTab() {
                 </div>
                 <h3 className="text-lg font-semibold text-slate-800 mb-2">No Positions Found</h3>
                 <p className="text-slate-600 text-sm max-w-sm mx-auto">
-                  You don't have any active positions at the moment. Start trading to see your positions here.
+                  You don&apos;t have any active positions at the moment. Start trading to see your positions here.
                 </p>
               </div>
             </div>

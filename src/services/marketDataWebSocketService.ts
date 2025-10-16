@@ -3,6 +3,11 @@ import { MarketData } from '@/types'
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
+interface WebSocketError {
+  message?: string
+  description?: string
+}
+
 interface MarketDataWebSocketService {
   connect: () => void
   disconnect: () => void
@@ -11,14 +16,14 @@ interface MarketDataWebSocketService {
   isConnected: () => boolean
   onConnect: (callback: () => void) => void
   onDisconnect: (callback: () => void) => void
-  onError: (callback: (error: any) => void) => void
+  onError: (callback: (error: WebSocketError) => void) => void
   getConnectionStatus: () => ConnectionStatus
 }
 
 class MarketDataWebSocketServiceImpl implements MarketDataWebSocketService {
   private marketDataSocket: Socket | null = null
   private marketDataCallback: ((data: MarketData) => void) | null = null
-  private errorCallback: ((error: any) => void) | null = null
+  private errorCallback: ((error: WebSocketError) => void) | null = null
   private connectCallback: (() => void) | null = null
   private disconnectCallback: (() => void) | null = null
   
@@ -123,7 +128,7 @@ class MarketDataWebSocketServiceImpl implements MarketDataWebSocketService {
       }
     })
 
-    this.marketDataSocket.on('market_data_update', (data: any) => {
+    this.marketDataSocket.on('market_data_update', (data: { data: MarketData }) => {
       this.lastDataReceived = Date.now()
       
       if (this.marketDataCallback && data?.data) {
@@ -139,12 +144,12 @@ class MarketDataWebSocketServiceImpl implements MarketDataWebSocketService {
       }
     })
 
-    this.marketDataSocket.on('error', (error: any) => {
+    this.marketDataSocket.on('error', (error: unknown) => {
       console.error('Market Data WebSocket error:', error)
       this.handleConnectionError(error)
     })
 
-    this.marketDataSocket.on('connect_error', (error: any) => {
+    this.marketDataSocket.on('connect_error', (error: unknown) => {
       console.error('Market Data WebSocket connection error:', error)
       this.handleConnectionError(error)
     })
@@ -161,7 +166,7 @@ class MarketDataWebSocketServiceImpl implements MarketDataWebSocketService {
       this.reconnectAttempts = attemptNumber
     })
 
-    this.marketDataSocket.on('reconnect_error', (error: any) => {
+    this.marketDataSocket.on('reconnect_error', (error: unknown) => {
       console.error('Market Data WebSocket reconnection error:', error)
       this.handleConnectionError(error)
     })
@@ -231,37 +236,56 @@ class MarketDataWebSocketServiceImpl implements MarketDataWebSocketService {
     }
   }
 
-  private validateMarketData(data: any): MarketData | null {
+  private validateMarketData(data: unknown): MarketData | null {
     try {
+      if (!data || typeof data !== 'object') {
+        console.warn('Invalid market data structure:', data)
+        return null
+      }
+      
+      const marketData = data as Record<string, unknown>
+      
       // Validate NIFTY 50 data
-      const nifty50 = data.nifty50
-      if (!nifty50 || typeof nifty50.price !== 'number' || typeof nifty50.changePercent !== 'number') {
+      const nifty50 = marketData.nifty50
+      if (!nifty50 || typeof nifty50 !== 'object' || !('price' in nifty50) || !('changePercent' in nifty50)) {
         console.warn('Invalid NIFTY 50 data:', nifty50)
+        return null
+      }
+      
+      const nifty50Data = nifty50 as { price: unknown; changePercent: unknown }
+      if (typeof nifty50Data.price !== 'number' || typeof nifty50Data.changePercent !== 'number') {
+        console.warn('Invalid NIFTY 50 data types:', nifty50Data)
         return null
       }
 
       // Validate NIFTY Bank data
-      const niftyBank = data.niftyBank
-      if (!niftyBank || typeof niftyBank.price !== 'number' || typeof niftyBank.changePercent !== 'number') {
+      const niftyBank = marketData.niftyBank
+      if (!niftyBank || typeof niftyBank !== 'object' || !('price' in niftyBank) || !('changePercent' in niftyBank)) {
         console.warn('Invalid NIFTY Bank data:', niftyBank)
+        return null
+      }
+      
+      const niftyBankData = niftyBank as { price: unknown; changePercent: unknown }
+      if (typeof niftyBankData.price !== 'number' || typeof niftyBankData.changePercent !== 'number') {
+        console.warn('Invalid NIFTY Bank data types:', niftyBankData)
         return null
       }
 
       // Validate price ranges (basic sanity checks)
-      if (nifty50.price <= 0 || nifty50.price > 100000 || 
-          niftyBank.price <= 0 || niftyBank.price > 100000) {
-        console.warn('Price values out of expected range:', { nifty50: nifty50.price, niftyBank: niftyBank.price })
+      if (nifty50Data.price <= 0 || nifty50Data.price > 100000 || 
+          niftyBankData.price <= 0 || niftyBankData.price > 100000) {
+        console.warn('Price values out of expected range:', { nifty50: nifty50Data.price, niftyBank: niftyBankData.price })
         return null
       }
 
       return {
         nifty50: {
-          price: nifty50.price,
-          changePercent: nifty50.changePercent
+          price: nifty50Data.price,
+          changePercent: nifty50Data.changePercent
         },
         niftyBank: {
-          price: niftyBank.price,
-          changePercent: niftyBank.changePercent
+          price: niftyBankData.price,
+          changePercent: niftyBankData.changePercent
         }
       }
     } catch (error) {
@@ -270,11 +294,15 @@ class MarketDataWebSocketServiceImpl implements MarketDataWebSocketService {
     }
   }
 
-  private handleConnectionError(error: any): void {
+  private handleConnectionError(error: unknown): void {
     console.error('Market Data WebSocket connection error:', error)
     this.isConnecting = false
-    this.lastError = error?.message || error?.description || 'Connection failed'
-    this.errorCallback?.(error)
+    const errorMessage = error instanceof Error ? error.message : 
+                       (error as WebSocketError)?.message || 
+                       (error as WebSocketError)?.description || 
+                       'Connection failed'
+    this.lastError = errorMessage
+    this.errorCallback?.(error as WebSocketError)
   }
 
   disconnect(): void {
@@ -329,7 +357,7 @@ class MarketDataWebSocketServiceImpl implements MarketDataWebSocketService {
     this.disconnectCallback = callback
   }
 
-  onError(callback: (error: any) => void): void {
+  onError(callback: (error: WebSocketError) => void): void {
     this.errorCallback = callback
   }
 
@@ -342,4 +370,5 @@ class MarketDataWebSocketServiceImpl implements MarketDataWebSocketService {
 }
 
 // Export singleton instance
-export default new MarketDataWebSocketServiceImpl()
+const marketDataWebSocketService = new MarketDataWebSocketServiceImpl()
+export default marketDataWebSocketService

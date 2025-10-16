@@ -100,7 +100,7 @@ export default function LightweightChart({
         const response = await chartDataService.fetchHistoricalData({
           token: config.token,
           exchange: config.exchange,
-          resolution: config.resolution as any,
+          resolution: config.resolution as '1' | '5' | '15' | '30' | '60' | 'D' | 'W' | 'M',
           from: dateRange.from,
           to: dateRange.to
         })
@@ -137,7 +137,7 @@ export default function LightweightChart({
     }
 
     loadHistoricalData()
-  }, [config.token, config.exchange, config.resolution])
+  }, [config.token, config.exchange, config.resolution, onDataLoad, onError])
 
   return (
     <div className="w-full h-full relative">

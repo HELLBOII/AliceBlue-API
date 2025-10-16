@@ -31,7 +31,7 @@ class ChartDataService {
       
       // Transform the data to match our interface
       return {
-        data: data.map((item: any) => ({
+        data: data.map((item: Record<string, unknown>) => ({
           time: item.time,
           open: item.open,
           high: item.high,
@@ -57,8 +57,6 @@ class ChartDataService {
   getDefaultDateRange(resolution: string): { from: number; to: number } {
     const now = Date.now()
     const oneDay = 24 * 60 * 60 * 1000
-    const oneWeek = 7 * oneDay
-    const oneMonth = 30 * oneDay
     const threeMonths = 90 * oneDay
     const oneYear = 365 * oneDay
 
@@ -115,4 +113,5 @@ class ChartDataService {
 }
 
 // Export singleton instance
-export default new ChartDataService()
+const chartDataService = new ChartDataService()
+export default chartDataService

@@ -26,17 +26,14 @@ const DEFAULT_MARKET_DATA: MarketData = {
 }
 
 export function useMarketData({
-  autoConnect = true,
   enableWebSocket = true,
   refreshInterval = 0
 }: UseMarketDataOptions = {}): UseMarketDataReturn {
   const [marketData, setMarketData] = useState<MarketData>(DEFAULT_MARKET_DATA)
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   
   const hasInitialized = useRef(false)
-  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const isSubscribed = useRef(false)
 
   // Refresh market data (now only WebSocket-based)
@@ -91,9 +88,10 @@ export function useMarketData({
       setIsConnected(false)
     }
 
-    const handleError = (error: any) => {
+    const handleError = (error: unknown) => {
       console.error('Market data WebSocket error:', error)
-      setError(error.message || 'WebSocket connection error')
+      const errorMessage = error instanceof Error ? error.message : 'WebSocket connection error'
+      setError(errorMessage)
       setIsConnected(false)
     }
 
@@ -143,7 +141,7 @@ export function useMarketData({
 
   return {
     marketData,
-    loading,
+    loading: false, // Always false since we removed loading state
     error,
     isConnected,
     refresh,

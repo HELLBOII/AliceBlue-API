@@ -57,7 +57,7 @@ class OrderWatchServiceImpl implements OrderWatchService {
   private heartbeatInterval: NodeJS.Timeout | null = null
   private orderCheckInterval: NodeJS.Timeout | null = null
   
-  private readonly SOCKET_URL = process.env.NEXT_PUBLIC_WS_BASE_URL || 'ws://localhost:8000'
+  private readonly SOCKET_URL = process.env.NEXT_PUBLIC_WS_BASE_URL || 'wss://localhost:8000'
   private readonly CONNECTION_TIMEOUT = 15000
   private readonly RECONNECT_DELAY = 2000
   private readonly HEARTBEAT_INTERVAL = 30000

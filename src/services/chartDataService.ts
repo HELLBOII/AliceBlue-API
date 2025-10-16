@@ -1,5 +1,4 @@
 import { HistoricalDataRequest, HistoricalDataResponse, OHLCData } from '@/types'
-import { getApiUrl } from '@/config/appConfig'
 
 class ChartDataService {
 
@@ -16,7 +15,8 @@ class ChartDataService {
         ...(request.to && { to: request.to.toString() })
       })
 
-      const response = await fetch(getApiUrl('/historical-data') + `?${params}`, {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
+      const response = await fetch(`${baseUrl}/api/historical-data?${params}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

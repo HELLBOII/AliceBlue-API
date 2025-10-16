@@ -25,7 +25,6 @@ import { useAPI } from '@/contexts/APIContext'
 import { useMarketData } from '@/hooks/useMarketData'
 import { useContractData } from '@/hooks/useContractData'
 import { OrderForm,Contract } from '@/types'
-import { getApiUrl } from '@/config/appConfig'
 import PositionBookTab from '@/components/tabs/PositionBookTab'
 import AccountDetailsTab from '@/components/tabs/AccountDetailsTab'
 import OpenOrdersTab from '@/components/tabs/OpenOrdersTab'
@@ -42,6 +41,12 @@ interface LogEntry {
 }
 
 export default function Dashboard() {
+  // Helper function to get API URL
+  const getApiUrl = (endpoint: string): string => {
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
+    return `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
+  }
+
   // Order State - declare before hooks
   
   // Use optimized hooks for data management

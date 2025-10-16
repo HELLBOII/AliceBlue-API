@@ -11,8 +11,8 @@ interface AppConfig {
 
 const getConfig = (): AppConfig => {
   // Check for environment variables first
-  const apiBaseUrl = 'https://alice-blue-api.vercel.app' 
-  const wsBaseUrl = 'https://alice-blue-api.vercel.app'
+  const apiBaseUrl = 'https://alice-blue-api.vercel.app:8000' 
+  const wsBaseUrl = 'https://alice-blue-api.vercel.app:8000'
   const environment = 'production'
 
   return {

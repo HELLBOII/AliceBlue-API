@@ -45,12 +45,6 @@ export default function Dashboard() {
   const getApiUrl = (endpoint: string): string => {
     const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
     const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
-    console.log('🔗 Dashboard API URL Debug:', {
-      envVar: process.env.NEXT_PUBLIC_API_BASE_URL,
-      baseUrl,
-      endpoint,
-      finalUrl: url
-    })
     return url
   }
 
@@ -284,8 +278,8 @@ export default function Dashboard() {
 
       // Call the appropriate API endpoint based on account mode
       const endpoint = accountMode === 'primary' 
-        ? getApiUrl('/place-order-primary')
-        : getApiUrl('/place-order-all')
+        ? getApiUrl('/api/place-order-primary')
+        : getApiUrl('/api/place-order-all')
       
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -298,18 +292,38 @@ export default function Dashboard() {
       const result = await response.json()
 
       if (result.success) {
+        await getOrders()
+        await getPositions()
+        await getFunds()
+        await getTradeBook()
         if (accountMode === 'primary') {
           addLog(`Order placed successfully on Primary Account: ${orderType} order for ${hookSelectedContract.trading_symbol}`, 'success')
           addLog(`Order ID: ${result.order_id || 'N/A'}`, 'info')
           
-          // Log stop loss order if placed
+          // Log stop loss orders if placed
           if (result.stop_loss_orders && result.stop_loss_orders.length > 0) {
-            const stopLossOrder = result.stop_loss_orders[0]
-            if (stopLossOrder.order_id) {
-              addLog(`Stop Loss Order placed: ID ${stopLossOrder.order_id} at ₹${stopLossOrder.stop_loss_price}`, 'success')
-            } else if (stopLossOrder.error) {
-              addLog(`Stop Loss Order failed: ${stopLossOrder.error}`, 'warning')
-            }
+            result.stop_loss_orders.forEach((stopLossOrder: Record<string, unknown>) => {
+              if (stopLossOrder.order_id) {
+                addLog(`Stop Loss Order placed: ID ${stopLossOrder.order_id} at ₹${stopLossOrder.stop_loss_price}`, 'success')
+              } else if (stopLossOrder.error) {
+                addLog(`Stop Loss Order failed: ${stopLossOrder.error}`, 'warning')
+              }
+            })
+          } else if (result.stop_loss_error) {
+            addLog(`Stop Loss Order failed: ${result.stop_loss_error}`, 'warning')
+          }
+          
+          // Log target orders if placed
+          if (result.target_orders && result.target_orders.length > 0) {
+            result.target_orders.forEach((targetOrder: Record<string, unknown>) => {
+              if (targetOrder.order_id) {
+                addLog(`Target Order placed: ID ${targetOrder.order_id} at ₹${targetOrder.target_price}`, 'success')
+              } else if (targetOrder.error) {
+                addLog(`Target Order failed: ${targetOrder.error}`, 'warning')
+              }
+            })
+          } else if (result.target_error) {
+            addLog(`Target Order failed: ${result.target_error}`, 'warning')
           }
           
           // Handle order watch for limit orders
@@ -386,7 +400,7 @@ export default function Dashboard() {
       addLog(`🚀 Initiating comprehensive square off on ${accountModeText}...`, 'info')
       
       // Call the comprehensive square off API
-      const response = await fetch(getApiUrl('/comprehensive-square-off'), {
+      const response = await fetch(getApiUrl('/api/comprehensive-square-off'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -976,6 +990,7 @@ export default function Dashboard() {
                     <span className="text-sm text-gray-600 mr-2">Limit Price: {orderType === 'limit' && <span className="text-red-500">*</span>}</span>
                     <input 
                       type="number" 
+                      value={orderType === 'market' ? 0 : orderForm.price}
                       onChange={(e) => setOrderForm(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
                       className={`w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none ${
                         orderType === 'market' ? 'bg-gray-200 text-gray-800' : 'bg-white text-gray-900'

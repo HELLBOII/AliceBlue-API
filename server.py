@@ -24,6 +24,12 @@ import sys
 import os
 from pya3 import TransactionType, OrderType, ProductType
 
+# -----------------------------
+# Global Constants & Variables
+# -----------------------------
+TRACKED_ORDERS_FILE = 'tracked_orders.json'
+TRACKED_LOCK = threading.Lock()
+
 # Add the src directory to the path to import encryption utilities
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
@@ -710,8 +716,11 @@ def place_stop_loss_order(alice_instance, instrument, main_order_result, transac
                 'main_order_id': main_order_result.get('NOrdNo')
             }
         
-        # Calculate stop loss price based on type
-        stop_loss_price = main_price * (1 - stop_loss_margin / 100)
+        # Calculate stop loss price based on transaction type
+        if transaction_type == 'B':  # Buy order - place sell stop loss
+            stop_loss_price = main_price * (1 - stop_loss_margin / 100)
+        else:  # Sell order - place buy stop loss  
+            stop_loss_price = main_price * (1 + stop_loss_margin / 100)
 
         # Place stop loss order - AliceBlue uses trigger_price parameter for stop loss
         stop_loss_result = alice_instance.place_order(
@@ -735,6 +744,77 @@ def place_stop_loss_order(alice_instance, instrument, main_order_result, transac
             return {
                 'account_name': account_name,
                 'error': stop_loss_result.get('emsg', 'Stop loss order failed') if stop_loss_result else 'No response',
+                'main_order_id': main_order_result.get('NOrdNo')
+            }
+    except Exception as e:
+        return {
+            'account_name': account_name,
+            'error': str(e),
+            'main_order_id': main_order_result.get('NOrdNo')
+        }
+
+# Helper function to place stop loss order
+def place_target_order(alice_instance, instrument, main_order_result, transaction_type, quantity, account_name, settings, data):
+    """Place target order after successful main order"""
+    try:
+        # Get target configuration from settings
+        target_margin = settings.get('ProfitMargin', 2.0)  # Default 2% profit margin
+        main_price = data.get("price")
+
+        # For market orders (price = 0), get current LTP
+        if not main_price or main_price <= 0:
+            try:
+                # Get current LTP for the instrument
+                scrip_info = alice_instance.get_scrip_info(instrument)
+                main_price = float(scrip_info.get('LTP', 0))
+                
+                if main_price <= 0:
+                    return {
+                        'account_name': account_name,
+                        'error': 'Unable to get current market price for target calculation',
+                        'main_order_id': main_order_result.get('NOrdNo')
+                    }
+            except Exception as e:
+                return {
+                    'account_name': account_name,
+                    'error': f'Failed to get current market price: {str(e)}',
+                    'main_order_id': main_order_result.get('NOrdNo')
+                }
+        
+        if main_price <= 0:
+            return {
+                'account_name': account_name,
+                'error': 'Main order price must be greater than 0',
+                'main_order_id': main_order_result.get('NOrdNo')
+            }
+        
+        # Calculate target price based on transaction type
+        if transaction_type == 'B':  # Buy order - place sell target
+            target_price = main_price * (1 + target_margin / 100)
+        else:  # Sell order - place buy target
+            target_price = main_price * (1 - target_margin / 100)
+
+        # Place target order as limit order
+        target_result = alice_instance.place_order(
+            transaction_type=TransactionType.Sell if transaction_type == 'B' else TransactionType.Buy,
+            instrument=instrument,
+            quantity=quantity,
+            order_type=OrderType.Limit,
+            product_type=ProductType.Intraday,
+            price=target_price
+        )
+        
+        if target_result and target_result.get('stat') == 'Ok':
+            return {
+                'account_name': account_name,
+                'order_id': target_result.get('NOrdNo'),
+                'target_price': target_price,
+                'main_order_id': main_order_result.get('NOrdNo')
+            }
+        else:
+            return {
+                'account_name': account_name,
+                'error': target_result.get('emsg', 'Target order failed') if target_result else 'No response',
                 'main_order_id': main_order_result.get('NOrdNo')
             }
     except Exception as e:
@@ -857,8 +937,12 @@ def place_order_primary():
                 'account_name': 'Primary Account'
             }
             
-            # Place stop loss order only for market orders
+            # Place stop loss and target orders only for market orders
             if data.get('executionType') == 'Market':
+                stop_loss_orders = []
+                target_orders = []
+                
+                # Place stop loss order
                 stop_loss_result = place_stop_loss_order(
                     alice, instrument, result, 
                     data.get('transaction_type'), 
@@ -868,9 +952,33 @@ def place_order_primary():
                     data
                 )
                 
-                if stop_loss_result:
-                    response['stop_loss_order'] = stop_loss_result
+                if stop_loss_result and not stop_loss_result.get('error'):
+                    stop_loss_orders.append(stop_loss_result)
                     response['message'] += ' with stop loss order'
+                elif stop_loss_result and stop_loss_result.get('error'):
+                    response['stop_loss_error'] = stop_loss_result.get('error')
+                
+                # Place target order
+                target_result = place_target_order(
+                    alice, instrument, result, 
+                    data.get('transaction_type'), 
+                    data.get("quantity", 0),
+                    'Primary Account',
+                    settings,
+                    data
+                )
+                
+                if target_result and not target_result.get('error'):
+                    target_orders.append(target_result)
+                    response['message'] += ' with target order'
+                elif target_result and target_result.get('error'):
+                    response['target_error'] = target_result.get('error')
+                
+                # Add order results to response
+                if stop_loss_orders:
+                    response['stop_loss_orders'] = stop_loss_orders
+                if target_orders:
+                    response['target_orders'] = target_orders
             else:
                 # For limit orders, start watching for execution to trigger stop loss
                 order_id = result.get('NOrdNo')
@@ -2202,11 +2310,4 @@ if __name__ == '__main__':
     
     # Start order monitoring for auto stop-loss
     # start_order_monitoring()
-    
-    # Use hardcoded production URLs
-    base_url = 'http://localhost:8000'
-    ws_url = 'ws://localhost:8000'
-    
-    print(f"Server running on {base_url}")
-    print(f"WebSocket server running on {ws_url}")
     socketio.run(app, host='0.0.0.0', port=8000, debug=True)

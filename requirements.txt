@@ -4,4 +4,3 @@ flask-socketio
 requests
 pycryptodome
 pya3
-pya3-test

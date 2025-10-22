@@ -44,13 +44,6 @@ const API_CONFIG = {
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
 }
 
-// Debug logging
-console.log('🔧 API Config Debug:', {
-  envVar: process.env.NEXT_PUBLIC_API_BASE_URL,
-  finalUrl: API_CONFIG.baseURL,
-  nodeEnv: process.env.NODE_ENV
-})
-
 export function APIContextProvider({ children }: APIContextProviderProps) {
   // Data state
   const [marketData] = useState<MarketData>({

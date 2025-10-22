@@ -674,92 +674,149 @@ def square_off_positions_for_account(alice, account_name):
         }
 
 # Helper function to place stop loss order
-def place_sl_tl_orders(alice_instance, instrument, main_order_result, transaction_type, quantity, account_name, settings, data):
-    """Place both stop loss and target orders after main order execution"""
+def place_stop_loss_order(alice_instance, instrument, main_order_result, transaction_type, quantity, account_name, settings, data):
+    """Place stop loss order after successful main order"""
     try:
-        stop_loss_margin = settings.get('StopLossMargin', 1.0)  # Default 1% stop loss
-        target_margin = settings.get('ProfitMargin', 2.0)        # Default 2% profit target
+        # Get stop loss configuration from settings
+        stop_loss_margin = settings.get('StopLossMargin')  
+        # Calculate stop loss price
         main_price = data.get("price")
 
-        # For market orders, fetch LTP if price not provided
+        # For market orders (price = 0), get current LTP
         if not main_price or main_price <= 0:
             try:
+                # Get current LTP for the instrument
                 scrip_info = alice_instance.get_scrip_info(instrument)
                 main_price = float(scrip_info.get('LTP', 0))
+                
                 if main_price <= 0:
                     return {
                         'account_name': account_name,
-                        'error': 'Unable to fetch valid LTP for order calculations',
+                        'error': 'Unable to get current market price for stop loss calculation',
                         'main_order_id': main_order_result.get('NOrdNo')
                     }
             except Exception as e:
                 return {
                     'account_name': account_name,
-                    'error': f'Failed to get LTP: {str(e)}',
+                    'error': f'Failed to get current market price: {str(e)}',
                     'main_order_id': main_order_result.get('NOrdNo')
                 }
+        
+        try:
+            if main_price <= 0:
+                return {
+                    'account_name': account_name,
+                    'error': 'Main order price must be greater than 0',
+                    'main_order_id': main_order_result.get('NOrdNo')
+                }
+        except (ValueError, TypeError):
+            return {
+                'account_name': account_name,
+                'error': 'Main order price must be a valid number',
+                'main_order_id': main_order_result.get('NOrdNo')
+            }
+        
+        # Calculate stop loss price based on transaction type
+        if transaction_type == 'B':  # Buy order - place sell stop loss
+            stop_loss_price = main_price * (1 - stop_loss_margin / 100)
+        else:  # Sell order - place buy stop loss  
+            stop_loss_price = main_price * (1 + stop_loss_margin / 100)
 
-        # Validate price
+        # Place stop loss order - AliceBlue uses trigger_price parameter for stop loss
+        stop_loss_result = alice_instance.place_order(
+            transaction_type=TransactionType.Sell if transaction_type == 'B' else TransactionType.Buy,
+            instrument=instrument,
+            quantity=quantity,
+            order_type=OrderType.StopLossLimit,
+            product_type=ProductType.Intraday,
+            price=stop_loss_price,
+            trigger_price=stop_loss_price  # This makes it a stop loss order
+        )
+        
+        if stop_loss_result and stop_loss_result.get('stat') == 'Ok':
+            return {
+                'account_name': account_name,
+                'order_id': stop_loss_result.get('NOrdNo'),
+                'stop_loss_price': stop_loss_price,
+                'main_order_id': main_order_result.get('NOrdNo')
+            }
+        else:
+            return {
+                'account_name': account_name,
+                'error': stop_loss_result.get('emsg', 'Stop loss order failed') if stop_loss_result else 'No response',
+                'main_order_id': main_order_result.get('NOrdNo')
+            }
+    except Exception as e:
+        return {
+            'account_name': account_name,
+            'error': str(e),
+            'main_order_id': main_order_result.get('NOrdNo')
+        }
+
+# Helper function to place stop loss order
+def place_target_order(alice_instance, instrument, main_order_result, transaction_type, quantity, account_name, settings, data):
+    """Place target order after successful main order"""
+    try:
+        # Get target configuration from settings
+        target_margin = settings.get('ProfitMargin', 2.0)  # Default 2% profit margin
+        main_price = data.get("price")
+
+        # For market orders (price = 0), get current LTP
+        if not main_price or main_price <= 0:
+            try:
+                # Get current LTP for the instrument
+                scrip_info = alice_instance.get_scrip_info(instrument)
+                main_price = float(scrip_info.get('LTP', 0))
+                
+                if main_price <= 0:
+                    return {
+                        'account_name': account_name,
+                        'error': 'Unable to get current market price for target calculation',
+                        'main_order_id': main_order_result.get('NOrdNo')
+                    }
+            except Exception as e:
+                return {
+                    'account_name': account_name,
+                    'error': f'Failed to get current market price: {str(e)}',
+                    'main_order_id': main_order_result.get('NOrdNo')
+                }
+        
         if main_price <= 0:
             return {
                 'account_name': account_name,
                 'error': 'Main order price must be greater than 0',
                 'main_order_id': main_order_result.get('NOrdNo')
             }
-
-        # Calculate stop loss and target prices
-        if transaction_type == 'B':  # Buy order
-            stop_loss_price = main_price * (1 - stop_loss_margin / 100)
+        
+        # Calculate target price based on transaction type
+        if transaction_type == 'B':  # Buy order - place sell target
             target_price = main_price * (1 + target_margin / 100)
-            sl_transaction_type = TransactionType.Sell
-            target_transaction_type = TransactionType.Sell
-        else:  # Sell order
-            stop_loss_price = main_price * (1 + stop_loss_margin / 100)
+        else:  # Sell order - place buy target
             target_price = main_price * (1 - target_margin / 100)
-            sl_transaction_type = TransactionType.Buy
-            target_transaction_type = TransactionType.Buy
 
-        # --- Place Stop Loss Order ---
-        stop_loss_result = alice_instance.place_order(
-            transaction_type=sl_transaction_type,
-            instrument=instrument,
-            quantity=quantity,
-            order_type=OrderType.StopLossLimit,
-            product_type=ProductType.Intraday,
-            price=stop_loss_price,
-            trigger_price=stop_loss_price
-        )
-
-        # --- Place Target Order ---
+        # Place target order as limit order
         target_result = alice_instance.place_order(
-            transaction_type=target_transaction_type,
+            transaction_type=TransactionType.Sell if transaction_type == 'B' else TransactionType.Buy,
             instrument=instrument,
             quantity=quantity,
             order_type=OrderType.Limit,
             product_type=ProductType.Intraday,
             price=target_price
         )
-
-        # --- Prepare combined response ---
-        response = {
-            'account_name': account_name,
-            'main_order_id': main_order_result.get('NOrdNo'),
-            'stop_loss_order': {
-                'status': 'success' if stop_loss_result and stop_loss_result.get('stat') == 'Ok' else 'failed',
-                'order_id': stop_loss_result.get('NOrdNo') if stop_loss_result else None,
-                'price': stop_loss_price,
-                'error': stop_loss_result.get('emsg') if stop_loss_result and stop_loss_result.get('stat') != 'Ok' else None
-            },
-            'target_order': {
-                'status': 'success' if target_result and target_result.get('stat') == 'Ok' else 'failed',
-                'order_id': target_result.get('NOrdNo') if target_result else None,
-                'price': target_price,
-                'error': target_result.get('emsg') if target_result and target_result.get('stat') != 'Ok' else None
+        
+        if target_result and target_result.get('stat') == 'Ok':
+            return {
+                'account_name': account_name,
+                'order_id': target_result.get('NOrdNo'),
+                'target_price': target_price,
+                'main_order_id': main_order_result.get('NOrdNo')
             }
-        }
-
-        return response
-
+        else:
+            return {
+                'account_name': account_name,
+                'error': target_result.get('emsg', 'Target order failed') if target_result else 'No response',
+                'main_order_id': main_order_result.get('NOrdNo')
+            }
     except Exception as e:
         return {
             'account_name': account_name,
@@ -834,7 +891,6 @@ def place_stop_loss_order_for_monitoring(alice_instance, instrument, executed_pr
             'symbol': symbol,
             'success': False
         }
-
 @app.route('/api/place-order-primary', methods=['POST'])
 def place_order_primary():
     """Place order on primary account only"""
@@ -843,99 +899,121 @@ def place_order_primary():
         
         # Validate required fields
         required_fields = ['transaction_type', 'exchange', 'trading_symbol', 'quantity']
-        missing = [f for f in required_fields if not data.get(f)]
-        if missing:
-            return jsonify({'success': False, 'error': f'Missing fields: {", ".join(missing)}'}), 400
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'success': False, 'error': f'Missing required field: {field}'}), 400
 
-        # Get instrument early to fail fast
-        instrument = alice.get_instrument_by_symbol(data['exchange'], data['trading_symbol'])
+        # Load settings
+        try:
+            with open('appsettings.json', 'r') as f:
+                settings = json.load(f)['Settings']
+        except:
+            return jsonify({'success': False, 'error': 'Failed to load account settings'}), 500
+
+        # Prepare order parameters
+        transaction_type = TransactionType.Buy if data.get('transaction_type') == 'B' else TransactionType.Sell
+        order_type = OrderType.Market if data.get('executionType') == 'Market' else OrderType.Limit
+        
+        # Get instrument
+        instrument = alice.get_instrument_by_symbol(data.get("exchange"), data.get("trading_symbol"))
         if not hasattr(instrument, 'exchange'):
             return jsonify({'success': False, 'error': 'Instrument not found'}), 400
-        
-        # Load settings only if needed (for market orders)
-        is_market = data.get('executionType') == 'Market'
-        settings = None
-        if is_market:
-            if app_settings is None:
-                if not load_app_settings():
-                    return jsonify({'success': False, 'error': 'Failed to load settings'}), 500
-            settings = app_settings['Settings']
-        
-        # Prepare order parameters
-        transaction_type = TransactionType.Buy if data['transaction_type'] == 'B' else TransactionType.Sell
-        order_type = OrderType.Market if is_market else OrderType.Limit
-        quantity = data['quantity']
         
         # Place main order
         result = alice.place_order(
             transaction_type=transaction_type,
             instrument=instrument,
-            quantity=quantity,
+            quantity=data.get("quantity", 0),
             order_type=order_type,
             product_type=ProductType.Intraday,
-            price=float(data.get('price', 0.0))
+            price=float(data.get("price", 0.0))
         )
         
-        # Check order result
-        if not result or result.get('stat') != 'Ok':
+        if result and result.get('stat') == 'Ok':
+            response = {
+                'success': True,
+                'message': 'Order placed successfully on Primary Account',
+                'order_id': result.get('NOrdNo'),
+                'account_name': 'Primary Account'
+            }
+            
+            # Place stop loss and target orders only for market orders
+            if data.get('executionType') == 'Market':
+                stop_loss_orders = []
+                target_orders = []
+                
+                # Place stop loss order
+                stop_loss_result = place_stop_loss_order(
+                    alice, instrument, result, 
+                    data.get('transaction_type'), 
+                    data.get("quantity", 0),
+                    'Primary Account',
+                    settings,
+                    data
+                )
+                
+                if stop_loss_result and not stop_loss_result.get('error'):
+                    stop_loss_orders.append(stop_loss_result)
+                    response['message'] += ' with stop loss order'
+                elif stop_loss_result and stop_loss_result.get('error'):
+                    response['stop_loss_error'] = stop_loss_result.get('error')
+                
+                # Place target order
+                target_result = place_target_order(
+                    alice, instrument, result, 
+                    data.get('transaction_type'), 
+                    data.get("quantity", 0),
+                    'Primary Account',
+                    settings,
+                    data
+                )
+                
+                if target_result and not target_result.get('error'):
+                    target_orders.append(target_result)
+                    response['message'] += ' with target order'
+                elif target_result and target_result.get('error'):
+                    response['target_error'] = target_result.get('error')
+                
+                # Add order results to response
+                if stop_loss_orders:
+                    response['stop_loss_orders'] = stop_loss_orders
+                if target_orders:
+                    response['target_orders'] = target_orders
+            else:
+                # For limit orders, start watching for execution to trigger stop loss
+                order_id = result.get('NOrdNo')
+                if order_id:
+                    # Prepare comprehensive order watch configuration
+                    order_watch_config = {
+                        'orderId': order_id,
+                        'symbol': data.get('trading_symbol', ''),
+                        'exchange': data.get('exchange', 'NFO'),
+                        'quantity': data.get('quantity', 0),
+                        'price': data.get('price', 0),
+                        'transactionType': data.get('transaction_type', 'B'),
+                        'accountName': 'Primary Account',
+                        'autoStopLoss': True,
+                        'stopLossMargin': settings.get('StopLossMargin', 2.0)
+                    }
+                    
+                    # Emit order watch event to WebSocket clients
+                    socketio.emit('start_watch_order', order_watch_config, namespace=order_watch_namespace)
+                    response['order_watch'] = {
+                        'enabled': True,
+                        'orderId': order_id,
+                        'symbol': data.get('trading_symbol', ''),
+                        'autoStopLoss': True,
+                        'stopLossMargin': settings.get('StopLossMargin', 2.0),
+                        'message': 'Order will be watched for execution to trigger stop loss'
+                    }
+            
+            return jsonify(response)
+        else:
             return jsonify({
                 'success': False,
                 'error': 'Order failed',
                 'message': result.get('emsg', 'Unknown error') if result else 'No response'
             }), 400
-        
-        # Build response
-        order_id = result.get('NOrdNo')
-        response = {
-            'success': True,
-            'message': 'Order placed successfully on Primary Account',
-            'order_id': order_id,
-            'account_name': 'Primary Account'
-        }
-        
-        # Handle stop loss and target orders
-        is_market = data.get('executionType') == 'Market'
-        
-        if is_market:
-            # Place stop loss order immediately for market orders
-            sl_result = place_sl_tl_orders(
-                alice, instrument, result, 
-                data['transaction_type'], 
-                quantity,
-                'Primary Account',
-                settings,
-                data
-            )
-            
-            if 'error' in sl_result:
-                response['stop_loss_error'] = sl_result['error']
-            else:
-                response['message'] += ' with stop loss and target orders'
-                response['stop_loss_orders'] = sl_result
-        elif order_id:
-            # For limit orders, set up order watching
-            socketio.emit('start_watch_order', {
-                'orderId': order_id,
-                'symbol': data['trading_symbol'],
-                'exchange': data['exchange'],
-                'quantity': quantity,
-                'price': data.get('price', 0),
-                'transactionType': data['transaction_type'],
-                'accountName': 'Primary Account',
-                'autoStopLoss': True,
-                'stopLossMargin': settings.get('StopLossMargin', 2.0)
-            }, namespace=order_watch_namespace)
-            
-            response['order_watch'] = {
-                'enabled': True,
-                'orderId': order_id,
-                'symbol': data['trading_symbol'],
-                'autoStopLoss': True,
-                'stopLossMargin': settings.get('StopLossMargin', 2.0),
-                'message': 'Order will be watched for execution to trigger stop loss'
-            }
-        
-        return jsonify(response)
             
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -948,35 +1026,42 @@ def place_order_all():
         
         # Validate required fields
         required_fields = ['transaction_type', 'exchange', 'trading_symbol', 'quantity']
-        missing = [f for f in required_fields if not data.get(f)]
-        if missing:
-            return jsonify({'success': False, 'error': f'Missing fields: {", ".join(missing)}'}), 400
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'success': False, 'error': f'Missing required field: {field}'}), 400
 
-        # Get instrument early to fail fast
-        instrument = alice.get_instrument_by_symbol(data['exchange'], data['trading_symbol'])
-        if not hasattr(instrument, 'exchange'):
-            return jsonify({'success': False, 'error': 'Instrument not found'}), 400
-        
         # Load accounts and settings
-        if app_settings is None:
-            if not load_app_settings():
-                return jsonify({'success': False, 'error': 'Failed to load account settings'}), 500
-        
-        accounts = app_settings['Settings']['AliceBlueAccounts']
-        settings = app_settings['Settings']
-        
-        # Decrypt accounts if they are encrypted
-        if app_settings.get('IsEncrypted', False) and ENCRYPTION_AVAILABLE and accounts:
-            accounts = decrypt_alice_blue_accounts(accounts)
+        try:
+            with open('appsettings.json', 'r') as f:
+                settings_data = json.load(f)
+                accounts = settings_data['Settings']['AliceBlueAccounts']
+                settings = settings_data['Settings']
+                
+                # Decrypt accounts if they are encrypted
+                is_encrypted_settings = settings_data.get('IsEncrypted', False)
+                if is_encrypted_settings and ENCRYPTION_AVAILABLE and accounts:
+                    try:
+                        accounts = decrypt_alice_blue_accounts(accounts)
+                        print("Decrypted AliceBlue account credentials for multi-account order")
+                    except Exception as e:
+                        print(f"Error decrypting credentials for multi-account order: {e}")
+                        return jsonify({'success': False, 'error': 'Failed to decrypt account credentials'}), 500
+                elif is_encrypted_settings and not ENCRYPTION_AVAILABLE:
+                    return jsonify({'success': False, 'error': 'Settings are encrypted but decryption utilities are not available'}), 500
+        except:
+            return jsonify({'success': False, 'error': 'Failed to load account settings'}), 500
 
         if not accounts:
             return jsonify({'success': False, 'error': 'No accounts available'}), 400
 
         # Prepare order parameters
-        transaction_type = TransactionType.Buy if data['transaction_type'] == 'B' else TransactionType.Sell
+        transaction_type = TransactionType.Buy if data.get('transaction_type') == 'B' else TransactionType.Sell
         order_type = OrderType.Market if data.get('executionType') == 'Market' else OrderType.Limit
-        quantity = data['quantity']
-        is_market = data.get('executionType') == 'Market'
+        
+        # Get instrument
+        instrument = alice.get_instrument_by_symbol(data.get("exchange"), data.get("trading_symbol"))
+        if not hasattr(instrument, 'exchange'):
+            return jsonify({'success': False, 'error': 'Instrument not found'}), 400
         
         # Process accounts in parallel
         import concurrent.futures
@@ -989,10 +1074,10 @@ def place_order_all():
                     result = account_alice.place_order(
                         transaction_type=transaction_type,
                         instrument=instrument,
-                        quantity=quantity,
+                        quantity=data.get("quantity", 0),
                         order_type=order_type,
                         product_type=ProductType.Intraday,
-                        price=float(data.get('price', 0.0))
+                        price=float(data.get("price", 0.0))
                     )
                     
                     if result and result.get('stat') == 'Ok':
@@ -1002,51 +1087,38 @@ def place_order_all():
                             'success': True
                         }
                         
-                        # Handle stop loss orders for market orders
-                        if is_market:
-                            sl_result = place_sl_tl_orders(
-                                account_alice, instrument, result, 
-                                data['transaction_type'], 
-                                quantity,
-                                account.get('Name', 'Unknown'),
-                                settings,
-                                data
-                            )
+                        # Place stop loss order only for market orders
+                        stop_loss_result = place_stop_loss_order(
+                            alice, instrument, result, 
+                            data.get('transaction_type'), 
+                            data.get("quantity", 0),
+                            'Primary Account',
+                            settings,
+                            data
+                        )
+                        
+                        if stop_loss_result:
+                            response['stop_loss_order'] = stop_loss_result
+                            response['message'] += ' with stop loss order'
+                        
+                    else:
+                        # For limit orders, start watching for execution to trigger stop loss
+                        order_id = result.get('NOrdNo')
+                        if order_id:
+                            # Prepare order watch configuration
+                            order_watch_config = {
+                                'orderId': order_id                    
+                            }
                             
-                            if 'error' in sl_result:
-                                order_result['stop_loss_error'] = sl_result['error']
-                            else:
-                                order_result['stop_loss_orders'] = sl_result
-                        elif result.get('NOrdNo'):
-                            # For limit orders, set up order watching
-                            socketio.emit('start_watch_order', {
-                                'orderId': result.get('NOrdNo'),
-                                'symbol': data['trading_symbol'],
-                                'exchange': data['exchange'],
-                                'quantity': quantity,
-                                'price': data.get('price', 0),
-                                'transactionType': data['transaction_type'],
-                                'accountName': account.get('Name', 'Unknown'),
-                                'autoStopLoss': True,
-                                'stopLossMargin': settings.get('StopLossMargin', 2.0)
-                            }, namespace=order_watch_namespace)
-                            
-                            order_result['order_watch'] = {
+                            # Emit order watch event to WebSocket clients
+                            socketio.emit('start_watch_order', order_watch_config, namespace=order_watch_namespace)
+                            response['order_watch'] = {
                                 'enabled': True,
-                                'orderId': result.get('NOrdNo'),
-                                'symbol': data['trading_symbol'],
-                                'autoStopLoss': True,
-                                'stopLossMargin': settings.get('StopLossMargin', 2.0),
+                                'orderId': order_id,
                                 'message': 'Order will be watched for execution to trigger stop loss'
                             }
-                        
-                        return order_result
-                    else:
-                        return {
-                            'account_name': account.get('Name', 'Unknown'),
-                            'error': 'Order failed',
-                            'success': False
-                        }
+                    
+                    return jsonify(response)
                 else:
                     return {
                         'account_name': account.get('Name', 'Unknown'),
@@ -1063,6 +1135,7 @@ def place_order_all():
         # Process accounts in parallel
         successful_orders = []
         failed_orders = []
+        stop_loss_orders = []
         
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
             futures = [executor.submit(place_order_for_account, account) for account in accounts]
@@ -1070,9 +1143,19 @@ def place_order_all():
             for future in concurrent.futures.as_completed(futures):
                 result = future.result()
                 if result['success']:
-                    successful_orders.append(result)
+                    successful_orders.append({
+                        'account_name': result['account_name'],
+                        'order_id': result['order_id']
+                    })
+                    
+                    # Add stop loss order if it was placed
+                    if result.get('stop_loss_order'):
+                        stop_loss_orders.append(result['stop_loss_order'])
                 else:
-                    failed_orders.append(result)
+                    failed_orders.append({
+                        'account_name': result['account_name'],
+                        'error': result['error']
+                    })
 
         # Return results
         if successful_orders:
@@ -1081,6 +1164,11 @@ def place_order_all():
                 'message': f'Orders placed on {len(successful_orders)} account(s)',
                 'successful_orders': successful_orders
             }
+            
+            # Add stop loss orders information
+            if stop_loss_orders:
+                response['stop_loss_orders'] = stop_loss_orders
+                response['message'] += f' with {len(stop_loss_orders)} stop loss order(s)'
             
             if failed_orders:
                 response['failed_orders'] = failed_orders
@@ -1733,35 +1821,6 @@ def handle_sync_watched_orders(data):
 
 # Global dictionary to track previous order statuses
 previous_order_statuses = {}
-
-# Global settings variable
-app_settings = None
-
-def load_app_settings():
-    """Load app settings from file and store in global variable"""
-    global app_settings
-    try:
-        with open('appsettings.json', 'r') as f:
-            app_settings = json.load(f)
-        return True
-    except Exception as e:
-        print(f"Error loading app settings: {e}")
-        return False
-
-def reload_app_settings():
-    """Reload app settings from file"""
-    return load_app_settings()
-
-@app.route('/api/reload-settings', methods=['POST'])
-def reload_settings():
-    """Reload app settings from file"""
-    try:
-        if reload_app_settings():
-            return jsonify({'success': True, 'message': 'Settings reloaded successfully'})
-        else:
-            return jsonify({'success': False, 'error': 'Failed to reload settings'}), 500
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
 
 @socketio.on('check_order_status', namespace=order_watch_namespace)
 def handle_check_order_status(data):

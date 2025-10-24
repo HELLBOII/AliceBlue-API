@@ -244,155 +244,173 @@ export default function Dashboard() {
   }, [])
 
   const handlePlaceOrders = async () => {
-    // Validation
-    if (!hookSelectedContract) {
-      addLog('Please select a contract', 'error')
-      return
+  // Validation
+  if (!hookSelectedContract) {
+    addLog('Please select a contract', 'error')
+    return
+  }
+
+  if (!orderForm.quantity || orderForm.quantity <= 0) {
+    addLog('Please enter a valid quantity', 'error')
+    return
+  }
+
+  if (orderType === 'limit' && (!orderForm.price || orderForm.price <= 0)) {
+    addLog('Please enter a valid limit price', 'error')
+    return
+  }
+
+  try {
+    const accountModeText = accountMode === 'primary' ? 'Primary Account' : 'All Connected Accounts'
+    addLog(`Placing ${orderType} order for ${hookSelectedContract.trading_symbol} on ${accountModeText}...`, 'info')
+    
+    // Simplified order data
+    const orderData = {
+      exchange: orderForm.exchange || 'NFO',
+      trading_symbol: orderForm.symbol || '',
+      quantity: orderForm.quantity,
+      price: orderType === 'market' ? 0 : orderForm.price,
+      executionType: orderType === 'market' ? 'Market' : orderForm.executionType,
+      product_type: orderForm.product_type,
+      transaction_type: orderForm.transaction_type,
+      account_mode: accountMode
     }
 
-    if (!orderForm.quantity || orderForm.quantity <= 0) {
-      addLog('Please enter a valid quantity', 'error')
-      return
-    }
+    // Call API endpoint
+    const endpoint = accountMode === 'primary' 
+      ? getApiUrl('/api/place-order-primary')
+      : getApiUrl('/api/place-order-all')
+    
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(orderData),
+    })
 
-    if (orderType === 'limit' && (!orderForm.price || orderForm.price <= 0)) {
-      addLog('Please enter a valid limit price', 'error')
-      return
-    }
+    const result = await response.json()
 
-    try {
-      const accountModeText = accountMode === 'primary' ? 'Primary Account' : 'All Connected Accounts'
-      addLog(`Placing ${orderType} order for ${hookSelectedContract.trading_symbol} on ${accountModeText}...`, 'info')
+    if (result.success) {
+      // Parallel API calls for better performance
+      Promise.all([
+        getOrders(),
+        getPositions(),
+        getFunds(),
+        getTradeBook()
+      ]).catch(err => console.error('Failed to refresh data:', err))
+
+      // Log success
+      const isPrimary = accountMode === 'primary'
       
-      // Simplified order data - only essential parameters
-      const orderData = {
-        exchange: orderForm.exchange || 'NFO',
-        trading_symbol: orderForm.symbol || '',
-        quantity: orderForm.quantity,
-        price: orderType === 'market' ? 0 : orderForm.price,
-        executionType: orderType === 'market' ? 'Market' : orderForm.executionType,
-        product_type: orderForm.product_type,
-        transaction_type: orderForm.transaction_type,
-        account_mode: accountMode // Add account mode to order data
+      if (isPrimary) {
+        addLog(
+          `Order placed successfully on ${accountModeText}: ${orderType} order for ${hookSelectedContract.trading_symbol}`, 
+          'success'
+        )
+      } else {
+        // Log summary for place_order_all
+        const totalAccounts = (result.successful_orders?.length || 0) + (result.failed_orders?.length || 0)
+        const successCount = result.successful_orders?.length || 0
+        const failCount = result.failed_orders?.length || 0
+        
+        addLog(
+          `📊 Order Summary: ${successCount}/${totalAccounts} accounts successful for ${hookSelectedContract.trading_symbol}`, 
+          successCount > 0 ? 'success' : 'error'
+        )
       }
 
-      // Call the appropriate API endpoint based on account mode
-      const endpoint = accountMode === 'primary' 
-        ? getApiUrl('/api/place-order-primary')
-        : getApiUrl('/api/place-order-all')
-      
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData),
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        await getOrders()
-        await getPositions()
-        await getFunds()
-        await getTradeBook()
-        if (accountMode === 'primary') {
-          addLog(`Order placed successfully on Primary Account: ${orderType} order for ${hookSelectedContract.trading_symbol}`, 'success')
-          addLog(`Order ID: ${result.order_id || 'N/A'}`, 'info')
-          
-          // Log stop loss orders if placed
-          if (result.stop_loss_orders && result.stop_loss_orders.length > 0) {
-            result.stop_loss_orders.forEach((stopLossOrder: Record<string, unknown>) => {
-              if (stopLossOrder.order_id) {
-                addLog(`Stop Loss Order placed: ID ${stopLossOrder.order_id} at ₹${stopLossOrder.stop_loss_price}`, 'success')
-              } else if (stopLossOrder.error) {
-                addLog(`Stop Loss Order failed: ${stopLossOrder.error}`, 'warning')
-              }
-            })
-          } else if (result.stop_loss_error) {
-            addLog(`Stop Loss Order failed: ${result.stop_loss_error}`, 'warning')
-          }
-          
-          // Log target orders if placed
-          if (result.target_orders && result.target_orders.length > 0) {
-            result.target_orders.forEach((targetOrder: Record<string, unknown>) => {
-              if (targetOrder.order_id) {
-                addLog(`Target Order placed: ID ${targetOrder.order_id} at ₹${targetOrder.target_price}`, 'success')
-              } else if (targetOrder.error) {
-                addLog(`Target Order failed: ${targetOrder.error}`, 'warning')
-              }
-            })
-          } else if (result.target_error) {
-            addLog(`Target Order failed: ${result.target_error}`, 'warning')
-          }
-          
-          // Handle order watch for limit orders
-          if (result.order_watch && result.order_watch.enabled) {
-            addLog(`Order watch enabled: ${result.order_watch.message}`, 'info')
-          }
-          
-          // Auto-watch the placed order if it's a limit order
-          if (orderType === 'limit' && result.order_id && hookSelectedContract && hookSelectedContract.trading_symbol) {
-            // Order watch functionality removed
-          }
-        } else {
-          addLog(`Orders placed successfully on All Accounts: ${orderType} order for ${hookSelectedContract.trading_symbol}`, 'success')
-          if (result.order_ids && result.order_ids.length > 0) {
-            addLog(`Order IDs: ${result.order_ids.join(', ')}`, 'info')
-          }
-          
-          // Log stop loss orders if placed
-          if (result.stop_loss_orders && result.stop_loss_orders.length > 0) {
-            addLog(`Stop Loss Orders placed:`, 'success')
-            result.stop_loss_orders.forEach((stopLossOrder: Record<string, unknown>) => {
-              if (stopLossOrder.order_id) {
-                addLog(`  ${stopLossOrder.account_name}: ID ${stopLossOrder.order_id} at ₹${stopLossOrder.stop_loss_price}`, 'info')
-              } else if (stopLossOrder.error) {
-                addLog(`  ${stopLossOrder.account_name}: Stop Loss failed - ${stopLossOrder.error}`, 'warning')
-              }
-            })
-          }
-          
-          // Auto-watch placed orders for all accounts if they are limit orders
-          if (orderType === 'limit' && result.order_ids && result.order_ids.length > 0 && hookSelectedContract && hookSelectedContract.trading_symbol) {
-            result.order_ids.forEach(() => {
-              // Order watch functionality removed
-            })
-          }
-        }
-        
-        // Reset form
-        setOrderForm(prev => ({
-          ...prev,
-          quantity: hookSelectedContract?.lot_size ? parseInt(hookSelectedContract.lot_size) : 1,
-          // price: hookSelectedContract?.price || 0,
-          trigger_price: 0,
-          stop_loss: 0
-        }))
-        setOrderType('market')
-
-      } else {
-        const errorMsg = result.message || result.error || 'Unknown error occurred'
-        addLog(`Order failed: ${errorMsg}`, 'error')
-        
-        // Log detailed error information
-        if (result.failed_orders && result.failed_orders.length > 0) {
-          addLog(`Failed orders details:`, 'error')
-          result.failed_orders.forEach((failed: Record<string, unknown>) => {
-            addLog(`  ${failed.account_name}: ${failed.error}`, 'error')
+      // Log order IDs
+      if (isPrimary) {
+        addLog(`Order ID: ${result.order_id}`, 'info')
+      } else if (!isPrimary) {
+        // Log detailed account-wise results for place_order_all
+        if (result.successful_orders && result.successful_orders.length > 0) {
+          addLog(`✅ Successful Orders (${result.successful_orders.length}):`, 'success')
+          result.successful_orders.forEach((order: any) => {
+            addLog(`  ${order.account_name}: Order ID ${order.order_id} - ${order.message}`, 'success')
           })
         }
         
-        // Log debug information
-        if (result.debug_info) {
-          addLog(`Debug: ${result.debug_info.total_accounts} accounts, ${result.debug_info.successful_count} successful, ${result.debug_info.failed_count} failed`, 'info')
+        if (result.failed_orders && result.failed_orders.length > 0) {
+          addLog(`❌ Failed Orders (${result.failed_orders.length}):`, 'error')
+          result.failed_orders.forEach((order: any) => {
+            addLog(`  ${order.account_name}: ${order.error}`, 'error')
+          })
         }
       }
       
-    } catch (error) {
+      // Helper function to log orders
+      const logOrders = (orders: Record<string, unknown>[], type: string, priceKey: string) => {
+        if (!orders?.length) return
+        
+        orders.forEach((order: Record<string, unknown>) => {
+          const prefix = isPrimary ? '' : `  ${order.account_name}: `
+          if (order.order_id) {
+            addLog(`${prefix}${type} Order placed: ID ${order.order_id} at ₹${order[priceKey]}`, 'success')
+          } else if (order.error) {
+            addLog(`${prefix}${type} Order failed: ${order.error}`, 'warning')
+          }
+        })
+      }
+      
+      // Log stop loss and target orders
+      logOrders(result.stop_loss_orders, 'Stop Loss', 'stop_loss_price')
+      logOrders(result.target_orders, 'Target', 'target_price')
+      
+      // Log errors if no orders placed
+      if (result.stop_loss_error) addLog(`Stop Loss Order failed: ${result.stop_loss_error}`, 'warning')
+      if (result.target_error) addLog(`Target Order failed: ${result.target_error}`, 'warning')
+      
+      // Order watch notification
+      if (result.order_watch?.enabled) {
+        addLog(`Order watch enabled: ${result.order_watch.message}`, 'info')
+      }
+      
+      // Reset form
+      setOrderForm(prev => ({
+        ...prev,
+        quantity: hookSelectedContract?.lot_size ? parseInt(hookSelectedContract.lot_size) : 1,
+        trigger_price: 0,
+        stop_loss: 0
+      }))
+      setOrderType('market')
+
+    } else {
+      // Log error
+      const errorMsg = result.message || result.error || 'Unknown error occurred'
+      addLog(`Order failed: ${errorMsg}`, 'error')
+      
+      // Log failed order details
+      if (result.failed_orders?.length > 0) {
+        // addLog(`Failed orders details:`, 'error')
+        result.failed_orders.forEach((failed: Record<string, unknown>) => {
+          addLog(`  ${failed.account_name}: ${failed.error}`, 'error')
+        })
+      }
+      
+      // Log debug info
+      if (result.debug_info) {
+        const { total_accounts, successful_count, failed_count } = result.debug_info
+        addLog(`Debug: ${total_accounts} accounts, ${successful_count} successful, ${failed_count} failed`, 'info')
+      }
+    }
+    
+  } catch (error) {
+    // Check if it's a structured error response with failed orders
+    if (error && typeof error === 'object' && 'failed_orders' in error) {
+      const failedOrders = (error as any).failed_orders || []
+      if (failedOrders.length > 0) {
+        addLog(`❌ All orders failed (${failedOrders.length} accounts):`, 'error')
+        failedOrders.forEach((order: any) => {
+          addLog(`  ${order.account_name}: ${order.error}`, 'error')
+        })
+      } else {
+        addLog(`Failed to place order: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error')
+      }
+    } else {
       addLog(`Failed to place order: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error')
     }
   }
+}
 
   const handleSquareOff = async () => {
     try {
